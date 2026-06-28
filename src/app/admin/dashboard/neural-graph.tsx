@@ -4,7 +4,7 @@ import { useRef, useMemo, useState, useEffect, Suspense } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Html, Text } from "@react-three/drei";
 import * as THREE from "three";
-import { categorizeSemantic, type SemanticCluster, type SemanticSubCategory, type SemanticSubSubCategory } from "@/lib/semantic-categories";
+import { categorizeSemantic, categorizeTraining, type SemanticCluster, type SemanticSubCategory, type SemanticSubSubCategory } from "@/lib/semantic-categories";
 
 type Tier = "working" | "stm" | "episodic" | "semantic" | "ltm" | "training";
 
@@ -100,9 +100,19 @@ const TIER_REGIONS: Record<Tier, THREE.Vector3> = {
 const MAX_NODES = 250;
 const MAX_EDGES = 350;
 const SEMANTIC_CLUSTER_PREFIX = "semantic-cat-";
+const TRAINING_CLUSTER_PREFIX = "training-cat-";
+
+function tierRadius(count: number, isTraining: boolean, trainingCategoryCount: number): number {
+  if (isTraining) {
+    const catCount = Math.max(1, trainingCategoryCount);
+    return 2.5 + Math.min(6, catCount * 0.8);
+  }
+  if (count === 0) return 1.8;
+  return 2.5 + Math.min(6, Math.sqrt(count) * 0.22);
+}
 
 function isClusterNode(node: GraphNode): boolean {
-  return node.id.startsWith(SEMANTIC_CLUSTER_PREFIX);
+  return node.id.startsWith(SEMANTIC_CLUSTER_PREFIX) || node.id.startsWith(TRAINING_CLUSTER_PREFIX);
 }
 
 function makeClusterNode(cluster: SemanticCluster): GraphNode {
@@ -133,6 +143,34 @@ function makeClusterNode(cluster: SemanticCluster): GraphNode {
   };
 }
 
+function makeTrainingClusterNode(cluster: SemanticCluster): GraphNode {
+  return {
+    id: cluster.id,
+    label: cluster.name,
+    type: "cluster",
+    tier: "training",
+    content: `${cluster.count} chunks across ${cluster.subCategories.length} sources`,
+    tags: [],
+    entities: [],
+    createdAt: "",
+    accessCount: 0,
+    recallCount: cluster.count,
+    decayFactor: 1,
+    dormant: false,
+    confidence: 1,
+    baseImportance: Math.min(1, 0.4 + cluster.count * 0.002),
+    consolidationLevel: 0,
+    mergedFromCount: 0,
+    usefulCount: 0,
+    rejectedCount: 0,
+    usefulnessScore: 1,
+    sessionMarker: null,
+    sessionTask: undefined,
+    valid: true,
+    source: "training-cluster",
+  };
+}
+
 function sampleNodes(snapshot: GraphSnapshot): GraphNode[] {
   const byTier: Record<string, GraphNode[]> = {};
   for (const n of snapshot.nodes) {
@@ -144,7 +182,9 @@ function sampleNodes(snapshot: GraphSnapshot): GraphNode[] {
   const result: GraphNode[] = [];
 
   const semanticNodes = byTier["semantic"] || [];
-  const otherTotal = snapshot.nodes.length - semanticNodes.length;
+  const trainingNodes = byTier["training"] || [];
+  const clusteredTiers = new Set(["semantic", "training"]);
+  const otherTotal = snapshot.nodes.length - semanticNodes.length - trainingNodes.length;
 
   if (semanticNodes.length > 0) {
     const clusters = categorizeSemantic(semanticNodes);
@@ -153,8 +193,15 @@ function sampleNodes(snapshot: GraphSnapshot): GraphNode[] {
     }
   }
 
+  if (trainingNodes.length > 0) {
+    const clusters = categorizeTraining(trainingNodes);
+    for (const cluster of clusters) {
+      result.push(makeTrainingClusterNode(cluster));
+    }
+  }
+
   for (const tier of Object.keys(byTier)) {
-    if (tier === "semantic") continue;
+    if (clusteredTiers.has(tier)) continue;
     const tierNodes = byTier[tier];
     const proportion = tierNodes.length / Math.max(1, otherTotal);
     const budget = Math.max(3, Math.round((MAX_NODES - result.length) * proportion));
@@ -168,10 +215,10 @@ function sampleNodes(snapshot: GraphSnapshot): GraphNode[] {
   return result.slice(0, MAX_NODES);
 }
 
-function distributeInRegion(region: THREE.Vector3, index: number, total: number): THREE.Vector3 {
+function distributeInRegion(region: THREE.Vector3, index: number, total: number, maxR: number): THREE.Vector3 {
   const phi = Math.acos(1 - 2 * (index + 0.5) / total);
   const theta = Math.PI * (1 + Math.sqrt(5)) * (index + 0.5);
-  const r = 1.5 + ((index * 0.371) % 1) * 1.5;
+  const r = maxR * (0.4 + ((index * 0.371) % 1) * 0.55);
   return new THREE.Vector3(
     region.x + r * Math.sin(phi) * Math.cos(theta),
     region.y + r * Math.sin(phi) * Math.sin(theta),
@@ -179,10 +226,10 @@ function distributeInRegion(region: THREE.Vector3, index: number, total: number)
   );
 }
 
-function distributeClusters(region: THREE.Vector3, index: number, total: number, count: number): THREE.Vector3 {
+function distributeClusters(region: THREE.Vector3, index: number, total: number, count: number, maxR: number): THREE.Vector3 {
   const phi = Math.acos(1 - 2 * (index + 0.5) / total);
   const theta = Math.PI * (1 + Math.sqrt(5)) * (index + 0.5);
-  const r = 1.8 + Math.min(2, count * 0.15);
+  const r = maxR * (0.5 + Math.min(0.4, count * 0.02));
   return new THREE.Vector3(
     region.x + r * Math.sin(phi) * Math.cos(theta),
     region.y + r * Math.sin(phi) * Math.sin(theta),
@@ -260,8 +307,8 @@ function InstancedNeurons({ brain, onSelect, activeIds }: {
     >
       <sphereGeometry args={[0.5, 12, 12]} />
       <meshStandardMaterial
-        emissive={"#19e4d4"}
-        emissiveIntensity={0.3}
+        emissive={"#222233"}
+        emissiveIntensity={0.15}
         transparent
         roughness={0.4}
         metalness={0.2}
@@ -317,10 +364,10 @@ function EdgeSegments({ brain, snapshot, activeIds }: {
   );
 }
 
-function BrainRegionLabel({ tier, count }: { tier: Tier; count: number }) {
+function BrainRegionLabel({ tier, count, radius }: { tier: Tier; count: number; radius: number }) {
   const pos = TIER_REGIONS[tier].clone();
-  pos.y += 3.5;
-  pos.x -= 3;
+  pos.y += radius + 0.8;
+  pos.x -= radius * 0.7;
   return (
     <Text
       position={pos}
@@ -336,17 +383,16 @@ function BrainRegionLabel({ tier, count }: { tier: Tier; count: number }) {
   );
 }
 
-function BrainRegionGlow({ tier, count }: { tier: Tier; count: number }) {
+function BrainRegionGlow({ tier, radius }: { tier: Tier; radius: number }) {
   const meshRef = useRef<THREE.Mesh>(null);
   useFrame((state) => {
     if (!meshRef.current) return;
     const mat = meshRef.current.material as THREE.MeshBasicMaterial;
     mat.opacity = 0.04 + Math.sin(state.clock.elapsedTime * 0.3) * 0.01;
   });
-  const r = Math.max(2.5, 1.5 + count * 0.3);
   return (
     <mesh ref={meshRef} position={TIER_REGIONS[tier]}>
-      <sphereGeometry args={[r, 16, 16]} />
+      <sphereGeometry args={[radius, 16, 16]} />
       <meshBasicMaterial
         color={TIER_COLORS[tier]}
         transparent
@@ -405,6 +451,17 @@ interface SceneProps {
 }
 
 function Scene({ snapshot, selected, setSelected, activeIds, visibleNodes, semanticClusters }: SceneProps) {
+  const tierRadii = useMemo(() => {
+    const radii: Record<string, number> = {};
+    const trainingCount = snapshot.stats.tierBreakdown["training"] || 0;
+    const trainingCatCount = visibleNodes.filter(n => n.tier === "training" && isClusterNode(n)).length;
+    for (const tier of Object.keys(TIER_REGIONS)) {
+      const count = snapshot.stats.tierBreakdown[tier] || 0;
+      radii[tier] = tierRadius(count, tier === "training", trainingCatCount || 1);
+    }
+    return radii;
+  }, [snapshot, visibleNodes]);
+
   const brain = useMemo<BrainNode[]>(() => {
     const tierCounts: Record<string, number> = {};
     const tierIndices: Record<string, number> = {};
@@ -416,11 +473,12 @@ function Scene({ snapshot, selected, setSelected, activeIds, visibleNodes, seman
       const idx = tierIndices[tier];
 
       const region = TIER_REGIONS[tier] || TIER_REGIONS.ltm;
+      const maxR = tierRadii[tier] || 3;
       const total = Math.max(1, tierCounts[tier] + 1);
       const cluster = isClusterNode(node);
       const pos = cluster
-        ? distributeClusters(region, idx, total, parseInt(node.recallCount?.toString() || "1"))
-        : distributeInRegion(region, idx, total);
+        ? distributeClusters(region, idx, total, parseInt(node.recallCount?.toString() || "1"), maxR)
+        : distributeInRegion(region, idx, total, maxR);
 
       const importance = node.baseImportance + (node.recallCount || 0) * 0.02;
       const radius = cluster
@@ -438,7 +496,7 @@ function Scene({ snapshot, selected, setSelected, activeIds, visibleNodes, seman
         isCluster: cluster,
       };
     });
-  }, [visibleNodes]);
+  }, [visibleNodes, tierRadii]);
 
   const selectedBrain = useMemo(() => {
     return selected ? brain.find(b => b.data.id === selected.id) || null : null;
@@ -456,14 +514,12 @@ function Scene({ snapshot, selected, setSelected, activeIds, visibleNodes, seman
 
       {(Object.keys(TIER_REGIONS) as Tier[]).map(tier => {
         const count = snapshot.stats.tierBreakdown[tier] || 0;
-        if (count === 0) return null;
-        return <BrainRegionGlow key={tier} tier={tier} count={count} />;
+        return <BrainRegionGlow key={tier} tier={tier} radius={tierRadii[tier] || 3} />;
       })}
 
       {(Object.keys(TIER_REGIONS) as Tier[]).map(tier => {
         const count = snapshot.stats.tierBreakdown[tier] || 0;
-        if (count === 0) return null;
-        return <BrainRegionLabel key={"label-" + tier} tier={tier} count={count} />;
+        return <BrainRegionLabel key={"label-" + tier} tier={tier} count={count} radius={tierRadii[tier] || 3} />;
       })}
 
       <EdgeSegments brain={brain} snapshot={snapshot} activeIds={activeIds} />
@@ -474,7 +530,7 @@ function Scene({ snapshot, selected, setSelected, activeIds, visibleNodes, seman
           key={b.data.id}
           position={[b.basePosition.x, b.basePosition.y + 1.2, b.basePosition.z]}
           fontSize={0.35}
-          color={TIER_COLORS.semantic}
+          color={TIER_COLORS[b.tier]}
           anchorX="center"
           anchorY="middle"
           outlineWidth={0.03}
@@ -750,9 +806,16 @@ export function NeuralGraph() {
 
   const semanticClusters = useMemo<SemanticCluster[]>(() => {
     if (!snapshot) return [];
+    const all: SemanticCluster[] = [];
     const semanticNodes = snapshot.nodes.filter(n => n.tier === "semantic");
-    if (semanticNodes.length === 0) return [];
-    return categorizeSemantic(semanticNodes as unknown as Parameters<typeof categorizeSemantic>[0]);
+    if (semanticNodes.length > 0) {
+      all.push(...categorizeSemantic(semanticNodes as unknown as Parameters<typeof categorizeSemantic>[0]));
+    }
+    const trainingNodes = snapshot.nodes.filter(n => n.tier === "training");
+    if (trainingNodes.length > 0) {
+      all.push(...categorizeTraining(trainingNodes as unknown as Parameters<typeof categorizeTraining>[0]));
+    }
+    return all;
   }, [snapshot]);
 
   const visibleNodes = useMemo(() => {

@@ -15,12 +15,25 @@ interface Post {
   accent?: string;
 }
 
-type Tab = "content" | "neural" | "webchat";
+type Tab = "content" | "neural" | "webchat" | "business";
 
 const WEBCHAT_URL =
   typeof window !== "undefined" && window.location.hostname === "localhost"
     ? "http://localhost:8198"
     : "https://webchat-forge.vercel.app";
+
+function OpenInNewTab({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="btn-chip text-xs"
+    >
+      {label} ↗
+    </a>
+  );
+}
 
 export default function AdminDashboard() {
   const [token, setToken] = useState("");
@@ -158,10 +171,22 @@ export default function AdminDashboard() {
             >
               WebChat
             </button>
+            <button
+              onClick={() => setActiveTab("business")}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                activeTab === "business"
+                  ? "bg-[var(--gold)] text-[#1a1006]"
+                  : "text-[var(--text-dim)] hover:text-[var(--text-bright)]"
+              }`}
+            >
+              Business
+            </button>
           </div>
           <button onClick={logout} className="btn-chip text-sm text-[var(--text-dim)] hover:text-[var(--red)] transition-colors">
             Logout
           </button>
+          {activeTab === "neural" && <OpenInNewTab href="/brain" label="Open Brain ↗" />}
+          {activeTab === "webchat" && <OpenInNewTab href="/webchat" label="Open WebChat ↗" />}
         </div>
       </div>
 
@@ -176,6 +201,8 @@ export default function AdminDashboard() {
             allow="clipboard-read; clipboard-write"
           />
         </div>
+      ) : activeTab === "business" ? (
+        <BusinessDashboard />
       ) : (
         <>
           {/* AI Generation Panel */}
@@ -352,6 +379,124 @@ function ManualPostEditor({ token, onCreated }: { token: string; onCreated: () =
         {saving ? "Creating..." : "Create & Commit"}
       </button>
       {result && <p className="text-sm text-[var(--cyan)] font-mono">{result}</p>}
+    </div>
+  );
+}
+
+function BusinessDashboard() {
+  const [health, setHealth] = useState<any>(null);
+  const [llmStats, setLlmStats] = useState<any>(null);
+  const [issues, setIssues] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const COMPANY_ID = "83cb60b8-1b22-479b-82c1-cd453e299374";
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      const base = window.location.hostname === "localhost"
+        ? "http://localhost:3200"
+        : "https://api.kc-ai.com";
+      try {
+        const [h, l, i] = await Promise.all([
+          fetch(`${base}/api/health`).then(r => r.json()),
+          fetch(`${base}/api/llm/stats`).then(r => r.json()),
+          fetch(`${base}/api/companies/${COMPANY_ID}/issues`).then(r => r.json()),
+        ]);
+        setHealth(h);
+        setLlmStats(l);
+        setIssues(i.issues || i || []);
+      } catch (e) {
+        setError("Unable to connect to KC-AI platform. Is the server running?");
+        console.error("Business dashboard fetch failed", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAll();
+    const interval = setInterval(fetchAll, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) {
+    return <div className="text-[var(--text-dim)] text-center py-20 animate-pulse">Loading business operations...</div>;
+  }
+
+  if (error && !health) {
+    return (
+      <div className="glass p-8 text-center">
+        <div className="text-[var(--red)] text-sm mb-2">{error}</div>
+        <div className="text-[var(--text-dim)] text-xs">Retrying in 30 seconds...</div>
+      </div>
+    );
+  }
+
+  const todoIssues = issues.filter((i: any) => i.status === "todo");
+  const completedIssues = issues.filter((i: any) => i.status === "completed");
+  const inProgressIssues = issues.filter((i: any) => i.status === "in_progress");
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard label="Agents" value={health?.agentCount || 0} color="var(--cyan)" />
+        <StatCard label="Open Issues" value={todoIssues.length} color="var(--gold)" />
+        <StatCard label="In Progress" value={inProgressIssues.length} color="var(--purple)" />
+        <StatCard label="Completed" value={completedIssues.length} color="var(--green)" />
+      </div>
+
+      {llmStats && (
+        <div className="glass p-4">
+          <div className="text-xs font-mono uppercase tracking-wider text-[var(--text-dim)] mb-3">
+            LLM Providers ({llmStats.providers?.length || 0})
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {llmStats.providers?.map((p: string, i: number) => (
+              <span
+                key={i}
+                className={`chip text-xs ${p === "vultr" ? "chip-gold" : "chip-neutral"}`}
+              >
+                {p}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="glass p-4 max-h-[400px] overflow-y-auto">
+        <div className="text-xs font-mono uppercase tracking-wider text-[var(--text-dim)] mb-3">
+          Active Work Items
+        </div>
+        <div className="space-y-1.5">
+          {todoIssues.slice(0, 30).map((issue: any) => (
+            <div
+              key={issue.id}
+              className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-xs font-mono text-[var(--gold)] flex-shrink-0">
+                  KCA-{issue.issue_number}
+                </span>
+                <span className="text-xs text-[var(--text)] truncate">{issue.title}</span>
+              </div>
+              <span className="text-xs text-[var(--text-dim)] flex-shrink-0 ml-2">
+                {issue.priority}
+              </span>
+            </div>
+          ))}
+          {todoIssues.length === 0 && (
+            <div className="text-xs text-[var(--text-dim)] py-4 text-center">No open issues</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="glass p-4 text-center">
+      <div className="text-2xl font-display font-800" style={{ color }}>{value}</div>
+      <div className="text-xs text-[var(--text-dim)] mt-1">{label}</div>
     </div>
   );
 }

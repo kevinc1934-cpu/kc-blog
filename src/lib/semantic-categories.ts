@@ -67,18 +67,30 @@ const LLM_SUBSUB_FOR_GENERAL: KeywordRule[] = [
 ];
 
 const CATEGORY_RULES: { prefix: RegExp; name: string }[] = [
-  { prefix: /^llm-mastery/i, name: "LLM Mastery" },
-  { prefix: /^osb\s+skill/i, name: "Obsidian Second Brain" },
-  { prefix: /^osb\s+changelog/i, name: "Obsidian Second Brain" },
-  { prefix: /^osb\s+arch/i, name: "Obsidian Second Brain" },
-  { prefix: /^osb\s+claude/i, name: "Obsidian Second Brain" },
-  { prefix: /^osb/i, name: "Obsidian Second Brain" },
-  { prefix: /^ai-brain/i, name: "AI Brain" },
-  { prefix: /^second-brain/i, name: "Second Brain" },
-  { prefix: /^brain-cog/i, name: "Brain Cognition" },
-  { prefix: /^neural_memory/i, name: "Neural Memory Architecture" },
+  { prefix: /^llm-mastery/i, name: "AI & LLM" },
+  { prefix: /^osb\s+skill/i, name: "Knowledge Management" },
+  { prefix: /^osb\s+changelog/i, name: "Knowledge Management" },
+  { prefix: /^osb\s+arch/i, name: "Knowledge Management" },
+  { prefix: /^osb\s+claude/i, name: "Knowledge Management" },
+  { prefix: /^osb/i, name: "Knowledge Management" },
+  { prefix: /^ai-brain/i, name: "AI Memory & Brain" },
+  { prefix: /^second-brain/i, name: "Knowledge Management" },
+  { prefix: /^brain-cog/i, name: "AI Memory & Brain" },
+  { prefix: /^neural_memory/i, name: "AI Memory & Brain" },
+  { prefix: /^nma:/i, name: "AI Memory & Brain" },
   { prefix: /^codeintelligen/i, name: "Code Intelligence" },
-  { prefix: /^khoj/i, name: "Khoj" },
+  { prefix: /^khoj/i, name: "Knowledge Management" },
+];
+
+const TRAINING_KEYWORD_RULES: { patterns: RegExp[]; name: string }[] = [
+  { patterns: [/llm|large language model|complete.*guide/i], name: "AI & LLM" },
+  { patterns: [/memory|stress.*test|neural.*memory|external memory|nma:/i], name: "AI Memory & Brain" },
+  { patterns: [/codeintelligen|code gen|bug detect|code completion|security scan/i], name: "Code Intelligence" },
+  { patterns: [/osb|obsidian|second.brain|khoj/i], name: "Knowledge Management" },
+  { patterns: [/business|startup|financ|revenue|market|sales/i], name: "Business" },
+  { patterns: [/desktop|electron|tauri|native app/i], name: "Desktop" },
+  { patterns: [/web|next\.?js|react|frontend|vercel/i], name: "Web" },
+  { patterns: [/model|transformer|inference|serving/i], name: "Model" },
 ];
 
 const OSB_SUBCATEGORIES: KeywordRule[] = [
@@ -128,11 +140,11 @@ export function categorizeSemantic(nodes: SemanticNode[]): SemanticCluster[] {
     let subName = "General";
     let subSubName: string | null = null;
 
-    if (categoryName === "LLM Mastery") {
+    if (categoryName === "AI & LLM") {
       const result = categorizeLLMNode(node);
       subName = result.sub;
       subSubName = result.subSub;
-    } else if (categoryName === "Obsidian Second Brain") {
+    } else if (categoryName === "Knowledge Management") {
       const result = categorizeOSBNode(node);
       subName = result.sub;
       subSubName = result.subSub;
@@ -216,5 +228,56 @@ export function categorizeSemantic(nodes: SemanticNode[]): SemanticCluster[] {
       }
     }
   }
+  return result;
+}
+
+export function categorizeTraining(nodes: SemanticNode[]): SemanticCluster[] {
+  const clusters: Map<string, SemanticCluster> = new Map();
+
+  for (const node of nodes) {
+    const text = (node.label + " " + node.content).toLowerCase();
+    let categoryName = "AI Memory & Brain";
+    for (const rule of TRAINING_KEYWORD_RULES) {
+      for (const pattern of rule.patterns) {
+        if (pattern.test(text)) {
+          categoryName = rule.name;
+          break;
+        }
+      }
+      if (categoryName !== "AI Memory & Brain") break;
+    }
+
+    const clusterId = `training-cat-${categoryName.toLowerCase().replace(/\s+/g, "-").replace(/&/g, "and")}`;
+    if (!clusters.has(clusterId)) {
+      clusters.set(clusterId, {
+        id: clusterId,
+        name: categoryName,
+        count: 0,
+        nodeIds: [],
+        subCategories: [],
+      });
+    }
+    const cluster = clusters.get(clusterId)!;
+    cluster.count++;
+    cluster.nodeIds.push(node.id);
+
+    const sourceName = (node.label || "").replace(/\s*\[chunk \d+\/\d+\]\s*$/, "").trim() || "General";
+    let subCat = cluster.subCategories.find(s => s.name === sourceName);
+    if (!subCat) {
+      subCat = {
+        id: `${clusterId}-sub-${sourceName.toLowerCase().replace(/\s+/g, "-").slice(0, 40)}`,
+        name: sourceName,
+        count: 0,
+        nodes: [],
+        subSubCategories: [],
+      };
+      cluster.subCategories.push(subCat);
+    }
+    subCat.count++;
+    subCat.nodes.push(node);
+  }
+
+  const result = Array.from(clusters.values());
+  result.sort((a, b) => b.count - a.count);
   return result;
 }
