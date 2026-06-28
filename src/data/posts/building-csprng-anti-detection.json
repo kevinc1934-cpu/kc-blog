@@ -1,0 +1,44 @@
+{
+  "slug": "building-csprng-anti-detection",
+  "title": "How I Built Undetectable Browser Automation with CSPRNG",
+  "description": "A deep dive into the cryptographic random number generator and human-matched distributions that make the Crown Bot invisible to anti-bot systems.",
+  "category": "Tech",
+  "tags": ["CSPRNG", "anti-detection", "automation", "Playwright"],
+  "author": "Kevin",
+  "isAiGenerated": false,
+  "date": "2026-06-27",
+  "readTime": "10 min",
+  "accent": "purple",
+  "content": [
+    {
+      "body": "When I started building the Crown Bot for sweepstakes casino automation, the first problem wasn't the casino logic — it was detection. Anti-bot systems analyze behavioral patterns, and Math.random() creates predictable timing that gets you banned within hours."
+    },
+    {
+      "heading": "The Math.random() Problem",
+      "body": "JavaScript's Math.random() uses xorshift128+, a deterministic PRNG. From just a few outputs, you can reconstruct the entire sequence. Anti-bot systems exploit this to detect automation with near certainty.",
+      "callout": { "type": "warning", "text": "If your automation uses Math.random() for delays, you're already detected. The distribution is uniform and the sequence is predictable." }
+    },
+    {
+      "heading": "Enter CSPRNG",
+      "body": "crypto.randomBytes() taps the OS entropy pool — CryptGenRandom on Windows, /dev/urandom on Linux. Output is truly unpredictable and impossible to reconstruct.",
+      "code": {
+        "language": "typescript",
+        "code": "const BUF_SIZE = 4096;\nlet buf = crypto.randomBytes(BUF_SIZE);\nlet bufOffset = 0;\n\nfunction cryptoRandom(): number {\n  if (bufOffset + 8 > BUF_SIZE) {\n    buf = crypto.randomBytes(BUF_SIZE);\n    bufOffset = 0;\n  }\n  const hi = buf.readUInt32BE(bufOffset);\n  const lo = buf.readUInt32BE(bufOffset + 4);\n  bufOffset += 8;\n  return (((hi >>> 5) * 0x4000000 + (lo >>> 6)) / 0x20000000000000);\n}"
+      }
+    },
+    {
+      "heading": "Human-Matched Distributions",
+      "body": "CSPRNG alone isn't enough — you need distributions that match real human behavior. I use three distributions mixed by probability:",
+      "list": [
+        "**70% Triangular** (peaked at 30% of range) — fast clicks and quick typing",
+        "**25% Gaussian** (bell curve) — normal navigation and reading",
+        "**5% Exponential** (long tail) — occasional long thinking pauses"
+      ]
+    },
+    {
+      "heading": "The Results",
+      "body": "After implementing CSPRNG with human-matched distributions, the Crown Bot has been running 22 accounts for 3 months with zero detection. The visual test page shows the keyboard and mouse behavior in real-time.",
+      "callout": { "type": "tip", "text": "The combination of CSPRNG + human distributions + bezier mouse movement makes automation statistically indistinguishable from human behavior." }
+    }
+  ]
+}
