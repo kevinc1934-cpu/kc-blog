@@ -40,20 +40,22 @@ export async function POST(request: NextRequest) {
   const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
   const topic = TOPICS[topicIndex !== undefined ? topicIndex % TOPICS.length : dayOfYear % TOPICS.length];
 
-  const apiKey = process.env.OPENAI_API_KEY || readEnvKey("OPENAI_API_KEY");
+  const apiKey = process.env.OPENROUTER_API_KEY || readEnvKey("OPENROUTER_API_KEY");
+  const apiUrl = "https://openrouter.ai/api/v1/chat/completions";
+  const model = "openai/gpt-4o-mini";
   if (!apiKey) {
-    return NextResponse.json({ error: "No OpenAI API key" }, { status: 500 });
+    return NextResponse.json({ error: "No OpenRouter API key" }, { status: 500 });
   }
 
   const sysPrompt = buildSystemPrompt(topic.category, topic.accent);
   const userPrompt = topic.prompt + ". Return valid JSON only, no markdown fences.";
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch(apiUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey, "HTTP-Referer": "https://kc.kevcspot.com" },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model,
         messages: [
           { role: "system", content: sysPrompt },
           { role: "user", content: userPrompt },
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const err = await response.text();
-      return NextResponse.json({ error: "OpenAI error: " + err }, { status: 500 });
+      return NextResponse.json({ error: "AI error: " + err }, { status: 500 });
     }
 
     const data = await response.json();
