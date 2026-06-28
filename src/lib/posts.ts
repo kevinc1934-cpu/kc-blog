@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 
+export type PostTier = "featured" | "standard" | "archived";
+
 export interface BlogPost {
   slug: string;
   title: string;
@@ -12,6 +14,7 @@ export interface BlogPost {
   date: string;
   readTime: string;
   accent: "gold" | "cyan" | "purple";
+  tier?: PostTier;
   content: PostSection[];
 }
 
@@ -86,13 +89,13 @@ export function getCategories(): { name: string; count: number; accent: "gold" |
 
 export const projectUpdates: ProjectUpdate[] = [
   {
-    slug: "crown-bot-proxy-removal",
-    projectSlug: "crown-bot",
-    projectName: "Crown Bot",
-    title: "Proxy Removal Complete — Bot Now Runs Without VLESS",
-    description: "Removed all proxy enforcement from the bot. Browser, controller, and dashboard all work without proxy. CSPRNG anti-detection still active.",
+    slug: "memory-forge-v5-tiers",
+    projectSlug: "memory-forge",
+    projectName: "Memory Forge",
+    title: "v5.0.0 — 6-Tier Cognitive Memory System + 115-Test Stress Suite",
+    description: "Added working/episodic/semantic tiers alongside STM/LTM/training. LTM sub-levels 1/2/3 with auto-promotion by recall count. Ebbinghaus forgetting curve, contradiction detection, procedural memory, compression, feedback loop, cross-session continuity. 115 assertions all passing.",
     date: "2026-06-28",
-    accent: "gold",
+    accent: "purple",
   },
   {
     slug: "memory-forge-694-nodes",
@@ -123,11 +126,25 @@ export const projectUpdates: ProjectUpdate[] = [
   },
 ];
 
+export function getPostsByTier(tier: PostTier): BlogPost[] {
+  return getAllPosts().filter((p) => (p.tier || "standard") === tier);
+}
+
 export function getAllUpdates(): { type: "post" | "update"; data: BlogPost | ProjectUpdate }[] {
-  const posts = getAllPosts().map((p) => ({ type: "post" as const, data: p as BlogPost | ProjectUpdate }));
+  const tierWeight: Record<PostTier, number> = { featured: 0, standard: 1, archived: 2 };
+  const posts = getAllPosts()
+    .filter((p) => (p.tier || "standard") !== "archived")
+    .map((p) => ({ type: "post" as const, data: p as BlogPost | ProjectUpdate }));
   const updates = projectUpdates.map((u) => ({ type: "update" as const, data: u as BlogPost | ProjectUpdate }));
 
   return [...posts, ...updates].sort((a, b) => {
+    // Sort by tier first (featured > standard)
+    const tierA = (a.type === "post" ? (a.data as BlogPost).tier || "standard" : "standard") as PostTier;
+    const tierB = (b.type === "post" ? (b.data as BlogPost).tier || "standard" : "standard") as PostTier;
+    if (tierWeight[tierA] !== tierWeight[tierB]) {
+      return tierWeight[tierA] - tierWeight[tierB];
+    }
+    // Then by date
     const dateA = (a.data as BlogPost).date || (a.data as ProjectUpdate).date;
     const dateB = (b.data as BlogPost).date || (b.data as ProjectUpdate).date;
     return new Date(dateB).getTime() - new Date(dateA).getTime();

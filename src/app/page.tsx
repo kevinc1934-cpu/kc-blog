@@ -1,18 +1,8 @@
 import Link from "next/link";
-import { getAllPosts, projectUpdates, type BlogPost, type ProjectUpdate } from "@/lib/posts";
+import { getAllPosts, getAllUpdates, projectUpdates, type BlogPost, type ProjectUpdate } from "@/lib/posts";
 
 export default function Home() {
-  const posts = getAllPosts();
-
-  // Merge posts and project updates into a single feed sorted by date
-  type FeedItem =
-    | { type: "post"; data: BlogPost; date: string }
-    | { type: "update"; data: ProjectUpdate; date: string };
-
-  const feed: FeedItem[] = [
-    ...posts.map((p) => ({ type: "post" as const, data: p, date: p.date })),
-    ...projectUpdates.map((u) => ({ type: "update" as const, data: u, date: u.date })),
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const feed = getAllUpdates();
 
   return (
     <div className="page-in max-w-3xl mx-auto px-6 py-12">
@@ -34,9 +24,9 @@ export default function Home() {
       <div className="blog-feed">
         {feed.map((item, i) => {
           if (item.type === "post") {
-            return <PostEntry key={`post-${item.data.slug}`} post={item.data} />;
+            return <PostEntry key={`post-${(item.data as BlogPost).slug}`} post={item.data as BlogPost} />;
           } else {
-            return <UpdateEntry key={`update-${item.data.slug}`} update={item.data} />;
+            return <UpdateEntry key={`update-${(item.data as ProjectUpdate).slug}`} update={item.data as ProjectUpdate} />;
           }
         })}
       </div>
@@ -51,10 +41,17 @@ export default function Home() {
 }
 
 function PostEntry({ post }: { post: BlogPost }) {
+  const tier = post.tier || "standard";
   return (
     <Link href={`/blog/${post.slug}`} className="blog-entry block group">
       <div className="blog-entry-meta">
         <span className={`chip chip-${post.accent}`}>{post.category}</span>
+        {tier === "featured" && (
+          <><span>·</span><span className="text-[var(--gold-bright)] font-bold">{"\u2605"} Featured</span></>
+        )}
+        {tier === "archived" && (
+          <><span>·</span><span className="text-[var(--text-dim)]">Archived</span></>
+        )}
         <span>·</span>
         <span>{formatDate(post.date)}</span>
         <span>·</span>

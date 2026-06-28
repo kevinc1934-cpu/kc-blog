@@ -71,7 +71,38 @@ async function createOrUpdateFile(token: string, filePath: string, content: stri
   }
 
   const data = await res.json();
+
+  // Trigger Vercel redeploy from latest Git commit
+  await triggerRedeploy();
+
   return NextResponse.json({ success: true, url: data.content?.html_url, sha: data.content?.sha });
+}
+
+async function triggerRedeploy() {
+  try {
+    const vercelToken = process.env.VERCEL_API_TOKEN;
+    if (!vercelToken) return;
+    const projectId = process.env.VERCEL_PROJECT_ID;
+    if (!projectId) return;
+
+    // Get the latest Git commit SHA
+    const gitRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/commits/${GITHUB_BRANCH}`, {
+      headers: { Authorization: `Bearer ${await getGithubToken()}`, Accept: "application/vnd.github.v3+json" },
+    });
+    if (!gitRes.ok) return;
+    const gitData = await gitRes.json();
+    const sha = gitData.sha;
+
+    // Create a new deployment from the Git commit
+    await fetch(`https://api.vercel.com/v13/deployments?projectId=${projectId}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${vercelToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        gitSource: { type: "github", repo: GITHUB_REPO, ref: GITHUB_BRANCH, sha },
+        target: "production",
+      }),
+    });
+  } catch {}
 }
 
 async function deleteFile(token: string, filePath: string) {
@@ -101,5 +132,6 @@ async function deleteFile(token: string, filePath: string) {
     return NextResponse.json({ error: "Failed to delete" }, { status: res.status });
   }
 
+  await triggerRedeploy();
   return NextResponse.json({ success: true });
 }
