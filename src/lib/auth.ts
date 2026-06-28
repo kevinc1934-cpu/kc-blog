@@ -4,7 +4,7 @@ export function checkAuth(request: NextRequest): boolean {
   const authHeader = request.headers.get("authorization");
   if (!authHeader) return false;
   const token = authHeader.replace("Bearer ", "");
-  const adminToken = process.env.CMS_ADMIN_TOKEN || "kc-blog-admin-2026";
+  const adminToken = process.env.CMS_ADMIN_TOKEN || "K3v1n2585";
   return token === adminToken;
 }
 

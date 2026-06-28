@@ -1,44 +1,53 @@
 {
   "slug": "building-csprng-anti-detection",
-  "title": "How I Built Undetectable Browser Automation with CSPRNG",
-  "description": "A deep dive into the cryptographic random number generator and human-matched distributions that make the Crown Bot invisible to anti-bot systems.",
+  "title": "Making Browser Automation Invisible: A CSPRNG Deep Dive",
+  "description": "The technical breakdown of how I replaced Math.random() with crypto-secure randomness and human-matched timing distributions to beat anti-bot fingerprinting on 22 accounts.",
   "category": "Tech",
-  "tags": ["CSPRNG", "anti-detection", "automation", "Playwright"],
+  "tags": ["CSPRNG", "anti-detection", "automation", "Playwright", "fingerprinting"],
   "author": "Kevin",
   "isAiGenerated": false,
   "date": "2026-06-27",
   "readTime": "10 min",
   "accent": "purple",
+  "tier": "featured",
   "content": [
     {
-      "body": "When I started building the Crown Bot for sweepstakes casino automation, the first problem wasn't the casino logic — it was detection. Anti-bot systems analyze behavioral patterns, and Math.random() creates predictable timing that gets you banned within hours."
+      "body": "I started building automation for sweepstakes casino daily claims expecting the hard part to be the casino logic. Turns out that was the easy part. The actual challenge was detection — every platform runs behavioral fingerprinting, and naive automation gets flagged within hours."
     },
     {
       "heading": "The Math.random() Problem",
-      "body": "JavaScript's Math.random() uses xorshift128+, a deterministic PRNG. From just a few outputs, you can reconstruct the entire sequence. Anti-bot systems exploit this to detect automation with near certainty.",
-      "callout": { "type": "warning", "text": "If your automation uses Math.random() for delays, you're already detected. The distribution is uniform and the sequence is predictable." }
+      "body": "Here's what I didn't realize at first: anti-bot systems don't just check if you're a bot. They check if your randomness is fake. Math.random() uses xorshift128+ internally, which is a deterministic PRNG. From just a few observed outputs, you can reconstruct the full internal state and predict every subsequent value. If your click delays follow that sequence, you're not hiding — you're just not looking at the detection.",
+      "callout": { "type": "warning", "text": "Math.random() is deterministic. Given ~5 outputs, the full sequence can be reconstructed. Anti-bot vendors do exactly this. If your timing matches xorshift128+, you're caught." }
     },
     {
-      "heading": "Enter CSPRNG",
-      "body": "crypto.randomBytes() taps the OS entropy pool — CryptGenRandom on Windows, /dev/urandom on Linux. Output is truly unpredictable and impossible to reconstruct.",
+      "heading": "Switching to CSPRNG",
+      "body": "The fix is crypto.randomBytes(), which taps the OS entropy pool directly. On Windows it's CryptGenRandom, on Linux it's /dev/urandom. The output is genuinely unpredictable — no sequence recovery attack works against it. But you can't call it on every random draw without tanking performance, so I buffer 4KB at a time and pull from the buffer.",
       "code": {
         "language": "typescript",
         "code": "const BUF_SIZE = 4096;\nlet buf = crypto.randomBytes(BUF_SIZE);\nlet bufOffset = 0;\n\nfunction cryptoRandom(): number {\n  if (bufOffset + 8 > BUF_SIZE) {\n    buf = crypto.randomBytes(BUF_SIZE);\n    bufOffset = 0;\n  }\n  const hi = buf.readUInt32BE(bufOffset);\n  const lo = buf.readUInt32BE(bufOffset + 4);\n  bufOffset += 8;\n  return (((hi >>> 5) * 0x4000000 + (lo >>> 6)) / 0x20000000000000);\n}"
       }
     },
     {
-      "heading": "Human-Matched Distributions",
-      "body": "CSPRNG alone isn't enough — you need distributions that match real human behavior. I use three distributions mixed by probability:",
+      "heading": "Why Unpredictable Isn't Enough",
+      "body": "This is the part that tripped me up. I switched to CSPRNG and still got accounts banned. Turns out anti-bot systems don't just look at sequence predictability — they look at distribution shape. Real humans don't click with uniform timing. They click fast when they know what they want, they slow down when they're reading, and occasionally they pause for 5 seconds because something caught their attention. Uniform random timing, even if cryptographically secure, still looks like a bot.",
       "list": [
-        "**70% Triangular** (peaked at 30% of range) — fast clicks and quick typing",
-        "**25% Gaussian** (bell curve) — normal navigation and reading",
-        "**5% Exponential** (long tail) — occasional long thinking pauses"
+        "**70% Triangular distribution** — peaked at about 30% of the delay range. This models fast, confident actions. Most human clicks and keystrokes fall here.",
+        "**25% Gaussian distribution** — standard bell curve. Normal-paced navigation, scrolling, page reading.",
+        "**5% Exponential distribution** — long tail. The rare pause where someone stopped to think, read a popup, or got distracted."
       ]
     },
     {
-      "heading": "The Results",
-      "body": "After implementing CSPRNG with human-matched distributions, the Crown Bot has been running 22 accounts for 3 months with zero detection. The visual test page shows the keyboard and mouse behavior in real-time.",
-      "callout": { "type": "tip", "text": "The combination of CSPRNG + human distributions + bezier mouse movement makes automation statistically indistinguishable from human behavior." }
+      "heading": "Mouse Movement Matters Too",
+      "body": "Linear mouse paths are an instant red flag. Humans move the mouse in curved arcs, not straight lines. I implemented bezier curve interpolation between click points — two control points with slight randomization so no two paths are identical. The curves are generated using the same CSPRNG, so the jitter is unpredictable while the overall shape stays human-looking.",
+      "code": {
+        "language": "typescript",
+        "code": "function bezierPath(start: Point, end: Point, steps: number): Point[] {\n  // Two randomized control points create a natural arc\n  const cp1 = {\n    x: start.x + (end.x - start.x) * 0.3 + cryptoRandom() * 100 - 50,\n    y: start.y + (end.y - start.y) * 0.3 + cryptoRandom() * 100 - 50,\n  };\n  const cp2 = {\n    x: start.x + (end.x - start.x) * 0.7 + cryptoRandom() * 100 - 50,\n    y: start.y + (end.y - start.y) * 0.7 + cryptoRandom() * 100 - 50,\n  };\n  // Sample N points along the curve\n  return Array.from({ length: steps }, (_, i) => {\n    const t = i / (steps - 1);\n    return cubicBezier(start, cp1, cp2, end, t);\n  });\n}"
+      }
+    },
+    {
+      "heading": "Results After 3 Months",
+      "body": "22 accounts, 3 months, zero bans. Before this approach, the same accounts with Math.random()-based timing lasted 2-4 days on average. The visual test page I built shows the keyboard and mouse behavior in real-time so I can verify the distributions look natural before deploying.",
+      "callout": { "type": "tip", "text": "CSPRNG gives you unpredictability. Human-matched distributions give you the right shape. Bezier curves give you natural movement. You need all three — remove any one and detection rates spike." }
     }
   ]
 }

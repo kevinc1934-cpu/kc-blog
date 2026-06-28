@@ -158,7 +158,7 @@ export const tutorials: Tutorial[] = [
       },
       {
         heading: "Automation: Never Miss a Day",
-        body: "For those managing many accounts, manual daily claims become impractical. This is where automation comes in. The Crown Bot project (documented in the AI Projects section) automates daily claims across accounts with human-like behavior to avoid detection.",
+        body: "For those managing many accounts, manual daily claims become impractical. This is where automation comes in. Using CSPRNG-based automation with human-like behavior avoids detection while claiming daily bonuses across accounts.",
         code: { language: "typescript", code: "// CSPRNG-based human delay — undetectable\nconst delay = humanDelayRng(800, 3500);\n// 70% triangular (fast), 25% gaussian (normal), 5% exponential (long pause)\nawait sleep(delay);\nawait claimDailyBonus();" },
       },
       {
@@ -173,7 +173,7 @@ export const tutorials: Tutorial[] = [
       },
       {
         heading: "Tracking and Analytics",
-        body: "Serious players track their daily claims, SC accumulation, and redemption history. A simple spreadsheet or the Crown Bot dashboard can track:",
+        body: "Serious players track their daily claims, SC accumulation, and redemption history. A simple spreadsheet or a custom dashboard can track:",
         list: [
           "Daily claim time and SC received per account",
           "Streak count and next bonus day prediction",
@@ -249,7 +249,7 @@ export const tutorials: Tutorial[] = [
       },
       {
         heading: "Automated Autoplay with CSPRNG",
-        body: "The Crown Bot project includes an autoplay module that uses CSPRNG (cryptographically secure random number generator) for human-like timing. This prevents detection while grinding VIP points around the clock.",
+        body: "The automation project includes an autoplay module that uses CSPRNG (cryptographically secure random number generator) for human-like timing. This prevents detection while grinding VIP points around the clock.",
         code: { language: "typescript", code: "// CSPRNG timing distributions for undetectable autoplay\n// 70% triangular (fast spins), 25% gaussian (normal), 5% exponential (long breaks)\nconst pause = spinPauseRng(spinCount, {\n  pauseMin: 3,\n  pauseMax: 10,\n  breakEvery: 60,  // randomized ±20\n  breakMin: 15,\n  breakMax: 30,\n});" },
       },
       {
@@ -428,7 +428,7 @@ export const tutorials: Tutorial[] = [
       },
       {
         heading: "Putting It All Together",
-        body: "The Crown Bot project combines all these techniques into a complete anti-detection system. The visual test page shows the CSPRNG keyboard and mouse behavior in real-time.",
+        body: "The automation project combines all these techniques into a complete anti-detection system. The visual test page shows the CSPRNG keyboard and mouse behavior in real-time.",
         list: [
           "CSPRNG for all random values (crypto.randomBytes, 4096-byte buffer)",
           "Triangular/Gaussian/Exponential distribution mix for delays",

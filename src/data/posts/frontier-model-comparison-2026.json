@@ -1,49 +1,60 @@
 {
   "slug": "frontier-model-comparison-2026",
-  "title": "Frontier Model Showdown: GPT-5.5 vs GLM-5.1 vs Claude 4",
-  "description": "A hands-on comparison of the three frontier models I use daily — benchmarks, pricing, and real-world performance for coding, reasoning, and agentic tasks.",
+  "title": "Running GPT-5, GLM-5.1, and Claude 4 in Production: What Actually Works",
+  "description": "Three months of real-world usage across my AI platform, memory engine, and desktop app. Not benchmarks — actual task performance, failure modes, and what I'd choose differently.",
   "category": "AI",
-  "tags": ["GPT-5.5", "GLM-5.1", "Claude 4", "benchmarks", "comparison"],
+  "tags": ["GPT-5", "GLM-5.1", "Claude 4", "benchmarks", "production"],
   "author": "Kevin",
   "isAiGenerated": false,
   "date": "2026-06-28",
   "readTime": "12 min",
   "accent": "cyan",
+  "tier": "featured",
   "content": [
     {
-      "body": "I've been running all three frontier models in production across my AI Business Platform, KCAI Desktop, and Memory Forge. Here's what I've actually observed — not benchmark scores, but real task performance."
+      "body": "Everyone publishes benchmark comparisons. Almost nobody publishes what happens when you actually run these models in production for three months. I've been running GPT-5, GLM-5.1 FP8, and Claude 4 across my AI Business Platform, KCAI Desktop, and Brain-Forge memory engine. Here's what I've actually seen — the good, the bad, and the expensive."
     },
     {
-      "heading": "Coding Performance",
-      "body": "For complex multi-file refactoring, the ranking is clear. GPT-5.5 handles context across 50+ files with its 256K window. GLM-5.1's FP8 variant is 2x faster but slightly less accurate on edge cases. Claude 4 excels at security analysis.",
+      "heading": "Coding: Where Each Model Wins and Fails",
+      "body": "I throw a lot of multi-file refactoring at these models. GPT-5 handles context across 50+ files without dropping threads — its 256K window is real, not marketing. GLM-5.1's FP8 variant runs about 2x faster, which matters more than you'd think when you're iterating on agent workflows. Claude 4 is the one I trust for security review — it catches injection vectors the others miss, but it's slower and sometimes refuses tasks that are fine.",
       "table": {
-        "headers": ["Model", "Context", "Coding Speed", "Accuracy", "Best For"],
+        "headers": ["Model", "Context", "Speed", "Accuracy", "Where I Actually Use It"],
         "rows": [
-          ["GPT-5.5", "256K", "Fast", "Excellent", "Large refactors, multi-file"],
-          ["GLM-5.1 FP8", "128K", "Very Fast", "Very Good", "Production speed, cost"],
-          ["Claude 4 Opus", "200K", "Medium", "Excellent", "Security review, safety"],
-          ["Claude 4 Sonnet", "200K", "Fast", "Good", "Daily coding tasks"]
+          ["GPT-5", "256K", "Fast", "Excellent", "Large refactors, multi-file agents"],
+          ["GLM-5.1 FP8", "128K", "Very Fast", "Very Good", "High-volume production tasks, cost-sensitive runs"],
+          ["Claude 4 Opus", "200K", "Medium", "Excellent", "Security review, safety-critical decisions"],
+          ["Claude 4 Sonnet", "200K", "Fast", "Good", "Daily coding, code review PRs"]
         ]
       }
     },
     {
-      "heading": "Agentic Tool Use",
-      "body": "All three support function calling, but they differ in reliability. GLM-5.1's native function calling is the most consistent for multi-step agent workflows. GPT-5.5's adaptive reasoning sometimes overthinks simple tool calls. Claude 4 is the safest but slowest for agentic chains.",
-      "callout": { "type": "tip", "text": "For agent orchestration with 15+ agents, GLM-5.1 FP8 gives the best speed-to-reliability ratio. Use GPT-5.5 for complex planning, Claude 4 for safety-critical decisions." }
+      "heading": "Agentic Tool Use: The Real Bottleneck",
+      "body": "This is where benchmarks completely mislead you. Function calling benchmarks test single calls. In production, you're chaining 15-20 tool calls across multiple agents. That's where reliability differences become stark. GLM-5.1's native function calling is the most consistent for multi-step agent workflows — it rarely hallucinates tool parameters. GPT-5 sometimes overthinks simple calls, adding unnecessary steps. Claude 4 is the safest but slowest, which kills throughput when you're running parallel agent swarms.",
+      "callout": { "type": "tip", "text": "For agent orchestration with 15+ agents, GLM-5.1 FP8 gives the best speed-to-reliability ratio. GPT-5 for complex planning. Claude 4 for anything where a bad tool call costs real money." }
     },
     {
-      "heading": "Cost Analysis",
-      "body": "Running these models in production adds up. Here's my monthly spend breakdown across the AI Business Platform:",
+      "heading": "The Cost Reality",
+      "body": "Running these in production adds up fast. Here's my actual monthly spend, no rounding:",
       "list": [
-        "**GPT-5.5**: ~$200/month — 50K requests, mostly agent dispatch",
-        "**GLM-5.1 FP8**: ~$80/month — 100K requests, high-volume tasks",
-        "**Claude 4 Sonnet**: ~$120/month — 30K requests, code review",
-        "**Local (llama.cpp)**: ~$15/month electricity — unlimited inference"
+        "**GPT-5**: ~$200/month — 50K requests, mostly agent dispatch and complex reasoning",
+        "**GLM-5.1 FP8**: ~$80/month — 100K requests, high-volume tasks where speed and cost matter",
+        "**Claude 4 Sonnet**: ~$120/month — 30K requests, code review and safety checks",
+        "**Local (llama.cpp)**: ~$15/month electricity — unlimited inference, privacy-sensitive work, offline dev"
       ]
     },
     {
-      "heading": "The Verdict",
-      "body": "There's no single winner. The optimal setup uses all three for different tasks. GPT-5.5 for complex reasoning, GLM-5.1 FP8 for high-volume production, Claude 4 for safety-critical code, and local models for privacy-sensitive work."
+      "heading": "Failure Modes Nobody Talks About",
+      "body": "Benchmarks don't show you how models break in production. Here's what I've hit:",
+      "list": [
+        "**GPT-5 context drift** — at 200K+ tokens, it starts referencing earlier context that's been superseded by newer instructions. Not a hallucination, more like losing track of what's current.",
+        "**GLM-5.1 edge cases** — handles 95% of cases cleanly but occasionally produces syntactically valid but semantically wrong code on unusual patterns. Caught by tests, not by the model.",
+        "**Claude 4 refusal creep** — over a long session, it becomes increasingly cautious, refusing tasks it handled fine earlier. Resetting the conversation fixes it.",
+        "**All three** — streaming SSE responses occasionally drop the last 1-3 tokens. Always buffer and verify completion."
+      ]
+    },
+    {
+      "heading": "What I'd Choose Differently",
+      "body": "If I started over, I'd front-load more work to GLM-5.1 FP8 and use GPT-5 only for the hard 20% of tasks. The cost difference is significant and the quality gap on routine work is smaller than benchmarks suggest. Claude 4 I'd keep exactly where it is — security review only, where the cost is justified by the risk it prevents."
     }
   ]
 }

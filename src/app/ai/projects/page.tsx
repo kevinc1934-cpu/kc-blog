@@ -9,12 +9,18 @@ export default function ProjectsPage() {
       <Breadcrumbs items={[{ label: "AI", href: "/ai" }, { label: "Projects" }]} />
       <h1 className="font-display font-800 text-4xl md:text-5xl mb-4 gradient-gold mt-6">Projects</h1>
       <p className="text-lg text-[var(--text-dim)] max-w-2xl mb-12">
-        AI infrastructure, desktop applications, and memory systems — all built to solve real problems.
+        The Forge ecosystem — AI infrastructure, memory systems, chat interfaces, training, and more.
+        Each project has a full technical reference with sections you can navigate.
       </p>
 
       <div className="space-y-6">
         {projects.map((project, i) => (
-          <Link key={project.slug} href={`/ai/projects/${project.slug}`} className="glass p-8 group block fade-up" style={{ animationDelay: `${i * 100}ms` }}>
+          <Link
+            key={project.slug}
+            href={`/ai/projects/${project.slug}#overview`}
+            className="glass p-8 group block fade-up"
+            style={{ animationDelay: `${i * 100}ms` }}
+          >
             <div className="flex flex-col md:flex-row md:items-start gap-6">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
@@ -26,14 +32,20 @@ export default function ProjectsPage() {
                 </h2>
                 <p className="text-[var(--text-dim)] leading-relaxed mb-4">{project.tagline}</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {project.tech.map((tech) => (
-                    <span key={tech} className="chip chip-neutral">{tech}</span>
+                  {project.sections.slice(0, 5).map((s) => (
+                    <span key={s.id} className="text-xs text-[var(--text-dim)] font-mono">
+                      {s.icon} {s.label}
+                      {project.sections.indexOf(s) < 4 ? " · " : ""}
+                    </span>
                   ))}
                 </div>
               </div>
               <div className="md:w-64 md:border-l md:border-[var(--border)] md:pl-6">
                 <p className="text-xs font-mono uppercase tracking-wider text-[var(--text-dim)] mb-2">Highlight</p>
                 <p className="text-sm text-[var(--gold)]">{project.highlight}</p>
+                <p className="text-xs text-[var(--text-dim)] font-mono mt-4">
+                  {project.sections.length} sections {"\u2192"}
+                </p>
               </div>
             </div>
           </Link>

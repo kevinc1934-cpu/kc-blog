@@ -1,62 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import type { Accent } from "@/lib/projects";
 
-export interface NavSection {
+export interface DocSection {
   id: string;
   label: string;
-  sub?: { id: string; label: string }[];
+  icon: string;
+  title: string;
+  description: string;
 }
 
-export function ProjectNav({ sections, accent }: { sections: NavSection[]; accent: string }) {
-  const [active, setActive] = useState<string>(sections[0]?.id || "");
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible.length > 0) {
-          setActive(visible[0].target.id);
-        }
-      },
-      { rootMargin: "-80px 0px -70% 0px", threshold: 0 }
-    );
-
-    for (const s of sections) {
-      const el = document.getElementById(s.id);
-      if (el) observer.observe(el);
-      for (const sub of s.sub || []) {
-        const subEl = document.getElementById(sub.id);
-        if (subEl) observer.observe(subEl);
-      }
-    }
-
-    return () => observer.disconnect();
-  }, [sections]);
-
+export function ProjectDocsNav({
+  sections,
+  activeId,
+  onSelect,
+  accent,
+  projectName,
+}: {
+  sections: DocSection[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  accent: Accent;
+  projectName: string;
+}) {
   const accentVar = `var(--${accent})`;
 
   return (
-    <nav className="sticky top-24 hidden lg:block">
-      <div className="glass p-5 w-60">
-        <p className="text-xs font-mono uppercase tracking-wider text-[var(--text-dim)] mb-4">
-          Sections
-        </p>
+    <nav className="sticky top-20 hidden lg:block max-h-[calc(100vh-6rem)] overflow-y-auto">
+      <div className="glass p-5 w-64">
+        <p className="font-display font-700 text-sm text-[var(--text-bright)] mb-1">{projectName}</p>
+        <p className="text-xs font-mono text-[var(--text-dim)] mb-4">Reference</p>
+        <div className="divider-gold mb-4" />
         <ul className="space-y-1">
           {sections.map((section) => {
-            const isActive = active === section.id;
+            const isActive = activeId === section.id;
             return (
               <li key={section.id}>
-                <a
-                  href={`#${section.id}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    document.getElementById(section.id)?.scrollIntoView({ behavior: "smooth" });
-                    setActive(section.id);
-                  }}
-                  className="block py-1.5 px-3 rounded-lg text-sm transition-all duration-200"
+                <button
+                  onClick={() => onSelect(section.id)}
+                  className="flex items-start gap-2.5 w-full py-2 px-3 rounded-lg text-sm transition-all duration-200 text-left"
                   style={{
                     color: isActive ? accentVar : "var(--text-dim)",
                     background: isActive ? `color-mix(in srgb, ${accentVar} 10%, transparent)` : "transparent",
@@ -64,40 +47,61 @@ export function ProjectNav({ sections, accent }: { sections: NavSection[]; accen
                     borderLeft: isActive ? `2px solid ${accentVar}` : "2px solid transparent",
                   }}
                 >
-                  {section.label}
-                </a>
-                {section.sub && (
-                  <ul className="ml-4 mt-1 space-y-0.5 border-l border-[var(--border)] pl-3">
-                    {section.sub.map((sub) => {
-                      const isSubActive = active === sub.id;
-                      return (
-                        <li key={sub.id}>
-                          <a
-                            href={`#${sub.id}`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              document.getElementById(sub.id)?.scrollIntoView({ behavior: "smooth" });
-                              setActive(sub.id);
-                            }}
-                            className="block py-1 px-2.5 rounded-md text-xs transition-all duration-200"
-                            style={{
-                              color: isSubActive ? accentVar : "var(--text-dim)",
-                              background: isSubActive ? `color-mix(in srgb, ${accentVar} 8%, transparent)` : "transparent",
-                              fontWeight: isSubActive ? 600 : 400,
-                            }}
-                          >
-                            {sub.label}
-                          </a>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                  <span className="text-base leading-none mt-0.5">{section.icon}</span>
+                  <span className="flex-1">{section.label}</span>
+                </button>
               </li>
             );
           })}
         </ul>
       </div>
     </nav>
+  );
+}
+
+export function ProjectDocsMobileNav({
+  sections,
+  activeId,
+  onSelect,
+}: {
+  sections: DocSection[];
+  activeId: string;
+  onSelect: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="lg:hidden mb-6">
+      <button
+        onClick={() => setOpen(!open)}
+        className="glass w-full p-3 flex items-center justify-between text-sm"
+      >
+        <span className="font-mono text-[var(--text-dim)]">
+          {sections.find((s) => s.id === activeId)?.icon} {sections.find((s) => s.id === activeId)?.label}
+        </span>
+        <span className="text-[var(--text-dim)]">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="glass mt-2 p-2 absolute z-30 w-full max-w-[calc(100vw-3rem)]">
+          <ul className="space-y-0.5">
+            {sections.map((section) => (
+              <li key={section.id}>
+                <button
+                  onClick={() => {
+                    onSelect(section.id);
+                    setOpen(false);
+                  }}
+                  className="flex items-center gap-2.5 w-full py-2 px-3 rounded-lg text-sm text-left text-[var(--text-dim)] hover:text-[var(--text-bright)] hover:bg-[var(--surface)] transition-colors"
+                  style={activeId === section.id ? { color: "var(--text-bright)", background: "var(--surface)" } : {}}
+                >
+                  <span>{section.icon}</span>
+                  <span>{section.label}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }

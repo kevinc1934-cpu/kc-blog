@@ -4,6 +4,6 @@ import { getAllPosts } from "@/lib/posts";
 
 export async function GET(request: NextRequest) {
   if (!checkAuth(request)) return unauthorized();
-  const posts = getAllPosts();
+  const posts = await getAllPosts();
   return NextResponse.json({ posts });
 }

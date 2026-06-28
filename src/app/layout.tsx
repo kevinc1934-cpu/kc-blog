@@ -53,10 +53,10 @@ export default function RootLayout({
   );
 }
 
-function Nav() {
+async function Nav() {
   let postCount = 0;
   try {
-    postCount = getAllPosts().length;
+    postCount = (await getAllPosts()).length;
   } catch {}
 
   return (

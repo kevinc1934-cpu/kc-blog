@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
   if (!force) {
     const today = new Date().toISOString().slice(0, 10);
-    const existing = getAllPosts().filter((p) => p.date === today && p.isAiGenerated);
+    const existing = (await getAllPosts()).filter((p) => p.date === today && p.isAiGenerated);
     if (existing.length > 0) {
       return NextResponse.json({ message: "Already generated today", date: today });
     }

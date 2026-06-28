@@ -18,20 +18,24 @@ export default function AboutPage() {
         <h2 className="text-2xl font-bold text-white mt-12 mb-4">What I Build</h2>
         <ul className="space-y-3">
           <li className="text-[var(--text)] leading-relaxed pl-0">
-            <span className="text-[var(--gold)]">▸</span> <strong className="text-white">AI Business Platform</strong> — A multi-agent orchestration
+            <span className="text-[var(--gold)]">▸</span> <strong className="text-white">Business-Forge</strong> — A multi-agent orchestration
             system with 15+ agents across 6 departments, real-time monitoring, and plugin architecture
           </li>
           <li className="text-[var(--text)] leading-relaxed pl-0">
-            <span className="text-[var(--cyan)]">▸</span> <strong className="text-white">KCAI Desktop</strong> — A .NET 8 WPF AI assistant with
+            <span className="text-[var(--cyan)]">▸</span> <strong className="text-white">Chat-Forge</strong> — A .NET 8 WPF AI assistant with
             local LLM inference (llama.cpp), 4 cloud providers, and MCP tool use
           </li>
           <li className="text-[var(--text)] leading-relaxed pl-0">
-            <span className="text-[var(--purple)]">▸</span> <strong className="text-white">Memory Forge</strong> — A graph-based semantic memory
-            system with live persistence and sub-100ms recall
+            <span className="text-[var(--purple)]">▸</span> <strong className="text-white">Brain-Forge</strong> — A cognitive memory
+            platform with 6-tier system, live persistence, and sub-100ms recall
           </li>
           <li className="text-[var(--text)] leading-relaxed pl-0">
-            <span className="text-[var(--gold)]">▸</span> <strong className="text-white">Crown Bot</strong> — Sweepstakes casino automation with
-            CSPRNG-based human behavior simulation
+            <span className="text-[var(--cyan)]">▸</span> <strong className="text-white">WebChat-Forge</strong> — Web chat with dual LLM
+            backends, knowledge hub, and confidence scoring
+          </li>
+          <li className="text-[var(--text)] leading-relaxed pl-0">
+            <span className="text-[var(--gold)]">▸</span> <strong className="text-white">Android-Forge</strong> — Termux thin client with
+            Vulkan ARM LoRA training on Snapdragon GPUs
           </li>
         </ul>
 

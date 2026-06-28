@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { getSupabase } from "./supabase";
 
 export type PostTier = "featured" | "standard" | "archived";
 
@@ -39,7 +40,9 @@ export interface ProjectUpdate {
 
 const POSTS_DIR = path.join(process.cwd(), "src", "data", "posts");
 
-export function getAllPosts(): BlogPost[] {
+// ─── JSON fallback readers ──────────────────────────────────────────────────
+
+function getAllPostsFromJson(): BlogPost[] {
   if (!fs.existsSync(POSTS_DIR)) return [];
   const files = fs.readdirSync(POSTS_DIR).filter((f) => f.endsWith(".json"));
   const posts: BlogPost[] = [];
@@ -54,7 +57,7 @@ export function getAllPosts(): BlogPost[] {
   return posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-export function getPost(slug: string): BlogPost | undefined {
+function getPostFromJson(slug: string): BlogPost | undefined {
   const filePath = path.join(POSTS_DIR, `${slug}.json`);
   if (!fs.existsSync(filePath)) return undefined;
   try {
@@ -64,12 +67,109 @@ export function getPost(slug: string): BlogPost | undefined {
   }
 }
 
-export function getPostsByCategory(category: string): BlogPost[] {
-  return getAllPosts().filter((p) => p.category.toLowerCase() === category.toLowerCase());
+// ─── Supabase row → BlogPost mapper ────────────────────────────────────────
+
+interface SupabasePostRow {
+  slug: string;
+  title: string;
+  description: string;
+  category: string;
+  tags: string[];
+  author: string;
+  is_ai_generated: boolean;
+  date: string;
+  read_time: string;
+  accent: string;
+  content: any[];
+  published: boolean;
 }
 
-export function getCategories(): { name: string; count: number; accent: "gold" | "cyan" | "purple" }[] {
-  const posts = getAllPosts();
+interface SupabaseUpdateRow {
+  slug: string;
+  project_slug: string;
+  project_name: string;
+  title: string;
+  description: string;
+  date: string;
+  accent: string;
+}
+
+function mapRowToPost(row: SupabasePostRow): BlogPost {
+  return {
+    slug: row.slug,
+    title: row.title,
+    description: row.description,
+    category: row.category,
+    tags: row.tags || [],
+    author: row.author,
+    isAiGenerated: row.is_ai_generated,
+    date: row.date,
+    readTime: row.read_time,
+    accent: row.accent as "gold" | "cyan" | "purple",
+    content: Array.isArray(row.content) ? row.content : [],
+  };
+}
+
+function mapRowToUpdate(row: SupabaseUpdateRow): ProjectUpdate {
+  return {
+    slug: row.slug,
+    projectSlug: row.project_slug,
+    projectName: row.project_name,
+    title: row.title,
+    description: row.description,
+    date: row.date,
+    accent: row.accent as "gold" | "cyan" | "purple",
+  };
+}
+
+// ─── Public API (Supabase first, JSON fallback) ─────────────────────────────
+
+export async function getAllPosts(): Promise<BlogPost[]> {
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("blog_posts")
+        .select("*")
+        .eq("published", true)
+        .order("date", { ascending: false });
+      if (!error && data && data.length > 0) {
+        return data.map((r) => mapRowToPost(r as SupabasePostRow));
+      }
+    } catch (e) {
+      console.error("Supabase getAllPosts error, falling back to JSON:", e);
+    }
+  }
+  return getAllPostsFromJson();
+}
+
+export async function getPost(slug: string): Promise<BlogPost | undefined> {
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("blog_posts")
+        .select("*")
+        .eq("slug", slug)
+        .eq("published", true)
+        .maybeSingle();
+      if (!error && data) {
+        return mapRowToPost(data as SupabasePostRow);
+      }
+    } catch (e) {
+      console.error("Supabase getPost error, falling back to JSON:", e);
+    }
+  }
+  return getPostFromJson(slug);
+}
+
+export async function getPostsByCategory(category: string): Promise<BlogPost[]> {
+  const posts = await getAllPosts();
+  return posts.filter((p) => p.category.toLowerCase() === category.toLowerCase());
+}
+
+export async function getCategories(): Promise<{ name: string; count: number; accent: "gold" | "cyan" | "purple" }[]> {
+  const posts = await getAllPosts();
   const catMap = new Map<string, number>();
   for (const post of posts) {
     catMap.set(post.category, (catMap.get(post.category) || 0) + 1);
@@ -86,6 +186,8 @@ export function getCategories(): { name: string; count: number; accent: "gold" |
     accent: accentMap[name] || "cyan",
   }));
 }
+
+// ─── Static project updates (fallback when Supabase unavailable) ────────────
 
 export const projectUpdates: ProjectUpdate[] = [
   {
@@ -126,27 +228,84 @@ export const projectUpdates: ProjectUpdate[] = [
   },
 ];
 
-export function getPostsByTier(tier: PostTier): BlogPost[] {
-  return getAllPosts().filter((p) => (p.tier || "standard") === tier);
+export async function getProjectUpdates(): Promise<ProjectUpdate[]> {
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("project_updates")
+        .select("*")
+        .order("date", { ascending: false });
+      if (!error && data && data.length > 0) {
+        return data.map((r) => mapRowToUpdate(r as SupabaseUpdateRow));
+      }
+    } catch (e) {
+      console.error("Supabase getProjectUpdates error, falling back to static:", e);
+    }
+  }
+  return projectUpdates;
 }
 
-export function getAllUpdates(): { type: "post" | "update"; data: BlogPost | ProjectUpdate }[] {
+export async function getPostsByTier(tier: PostTier): Promise<BlogPost[]> {
+  const posts = await getAllPosts();
+  return posts.filter((p) => (p.tier || "standard") === tier);
+}
+
+export async function getAllUpdates(): Promise<{ type: "post" | "update"; data: BlogPost | ProjectUpdate }[]> {
   const tierWeight: Record<PostTier, number> = { featured: 0, standard: 1, archived: 2 };
-  const posts = getAllPosts()
+  const posts = (await getAllPosts())
     .filter((p) => (p.tier || "standard") !== "archived")
     .map((p) => ({ type: "post" as const, data: p as BlogPost | ProjectUpdate }));
-  const updates = projectUpdates.map((u) => ({ type: "update" as const, data: u as BlogPost | ProjectUpdate }));
+  const updates = (await getProjectUpdates()).map((u) => ({ type: "update" as const, data: u as BlogPost | ProjectUpdate }));
 
   return [...posts, ...updates].sort((a, b) => {
-    // Sort by tier first (featured > standard)
     const tierA = (a.type === "post" ? (a.data as BlogPost).tier || "standard" : "standard") as PostTier;
     const tierB = (b.type === "post" ? (b.data as BlogPost).tier || "standard" : "standard") as PostTier;
     if (tierWeight[tierA] !== tierWeight[tierB]) {
       return tierWeight[tierA] - tierWeight[tierB];
     }
-    // Then by date
     const dateA = (a.data as BlogPost).date || (a.data as ProjectUpdate).date;
     const dateB = (b.data as BlogPost).date || (b.data as ProjectUpdate).date;
     return new Date(dateB).getTime() - new Date(dateA).getTime();
   });
+}
+
+// ─── Write helpers (used by API routes) ─────────────────────────────────────
+
+export async function upsertPost(post: BlogPost): Promise<{ success: boolean; error?: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { success: false, error: "Supabase not configured" };
+
+  const { error } = await supabase
+    .from("blog_posts")
+    .upsert({
+      slug: post.slug,
+      title: post.title,
+      description: post.description,
+      category: post.category,
+      tags: post.tags,
+      author: post.author,
+      is_ai_generated: post.isAiGenerated,
+      date: post.date,
+      read_time: post.readTime,
+      accent: post.accent,
+      content: post.content,
+      published: true,
+    }, { onConflict: "slug" });
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function deletePost(slug: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { success: false, error: "Supabase not configured" };
+
+  const { error } = await supabase
+    .from("blog_posts")
+    .delete()
+    .eq("slug", slug);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
 }

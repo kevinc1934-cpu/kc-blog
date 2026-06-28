@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Step 2: Commit to GitHub
-  const cmsToken = process.env.CMS_ADMIN_TOKEN || "kc-blog-admin-2026";
+  const cmsToken = process.env.CMS_ADMIN_TOKEN || "K3v1n2585";
   const commitRes = await fetch(new URL("/api/commit", request.url), {
     method: "POST",
     headers: {

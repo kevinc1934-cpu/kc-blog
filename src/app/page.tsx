@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { getAllPosts, getAllUpdates, projectUpdates, type BlogPost, type ProjectUpdate } from "@/lib/posts";
+import { getAllUpdates, type BlogPost, type ProjectUpdate } from "@/lib/posts";
 
-export default function Home() {
-  const feed = getAllUpdates();
+export const revalidate = 300;
+
+export default async function Home() {
+  const feed = await getAllUpdates();
 
   return (
     <div className="page-in max-w-3xl mx-auto px-6 py-12">

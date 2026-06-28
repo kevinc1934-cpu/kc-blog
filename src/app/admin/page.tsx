@@ -69,10 +69,6 @@ export default function AdminLogin() {
           </button>
         </form>
 
-        <div className="divider-gold my-6" />
-        <p className="text-xs text-[var(--text-dim)] font-mono">
-          Default token: kc-blog-admin-2026
-        </p>
       </div>
     </div>
   );

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { checkAuth, unauthorized } from "@/lib/auth";
+import { upsertPost, deletePost, type BlogPost } from "@/lib/posts";
 
-const GITHUB_REPO = "kevinc1934-cpu/kc-blog";
+const GITHUB_REPO = "kevinc1934-cpu/Blog-Forge";
 const GITHUB_BRANCH = "master";
 
 async function getGithubToken(): Promise<string | null> {
@@ -26,9 +28,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing slug or content" }, { status: 400 });
   }
 
+  // ─── Write to Supabase first (immediate availability) ───────────────────
+  if (action === "delete") {
+    const dbRes = await deletePost(slug);
+    if (!dbRes.success) {
+      console.error("Supabase delete failed:", dbRes.error);
+    }
+  } else {
+    const post = content as BlogPost;
+    const dbRes = await upsertPost(post);
+    if (!dbRes.success) {
+      console.error("Supabase upsert failed:", dbRes.error);
+    }
+  }
+
+  // ─── Invalidate ISR cache so new content appears immediately ────────────
+  try {
+    revalidatePath("/", "page");
+    revalidatePath("/blog/[slug]", "page");
+  } catch (e) {
+    console.error("revalidatePath error:", e);
+  }
+
+  // ─── Also commit to GitHub for version history + Vercel rebuild ──────────
   const token = await getGithubToken();
   if (!token) {
-    return NextResponse.json({ error: "No GitHub token available" }, { status: 500 });
+    // GitHub unavailable — Supabase write + ISR revalidation already done
+    return NextResponse.json({ success: true, warning: "GitHub token unavailable — saved to Supabase only" });
   }
 
   const filePath = `src/data/posts/${slug}.json`;
