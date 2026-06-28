@@ -20,7 +20,7 @@ type Tab = "content" | "neural" | "webchat";
 const WEBCHAT_URL =
   typeof window !== "undefined" && window.location.hostname === "localhost"
     ? "http://localhost:8198"
-    : "https://wchat.kevcspot.com";
+    : "https://webchat-forge.vercel.app";
 
 export default function AdminDashboard() {
   const [token, setToken] = useState("");

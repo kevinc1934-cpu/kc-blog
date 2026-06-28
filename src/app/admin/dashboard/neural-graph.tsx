@@ -2,7 +2,7 @@
 
 import { useRef, useMemo, useState, useEffect, Suspense } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Html, Line, Text } from "@react-three/drei";
+import { OrbitControls, Html, Text } from "@react-three/drei";
 import * as THREE from "three";
 
 type Tier = "working" | "stm" | "episodic" | "semantic" | "ltm" | "training";
@@ -96,22 +96,13 @@ const TIER_REGIONS: Record<Tier, THREE.Vector3> = {
   training: new THREE.Vector3(0, -6, 0),
 };
 
-interface BrainNode {
-  data: GraphNode;
-  position: THREE.Vector3;
-  basePosition: THREE.Vector3;
-  velocity: THREE.Vector3;
-  radius: number;
-  tier: Tier;
-  color: THREE.Color;
-  glowIntensity: number;
-  active: boolean;
-}
+const MAX_NODES = 250;
+const MAX_EDGES = 350;
 
 function distributeInRegion(region: THREE.Vector3, index: number, total: number): THREE.Vector3 {
   const phi = Math.acos(1 - 2 * (index + 0.5) / total);
   const theta = Math.PI * (1 + Math.sqrt(5)) * (index + 0.5);
-  const r = 1.5 + Math.random() * 1.5;
+  const r = 1.5 + ((index * 0.371) % 1) * 1.5;
   return new THREE.Vector3(
     region.x + r * Math.sin(phi) * Math.cos(theta),
     region.y + r * Math.sin(phi) * Math.sin(theta),
@@ -119,174 +110,147 @@ function distributeInRegion(region: THREE.Vector3, index: number, total: number)
   );
 }
 
-function NeuronMesh({ node, brain, onSelect, onHover }: {
-  node: BrainNode;
+interface BrainNode {
+  data: GraphNode;
+  position: THREE.Vector3;
+  basePosition: THREE.Vector3;
+  radius: number;
+  tier: Tier;
+  color: THREE.Color;
+  active: boolean;
+}
+
+function sampleNodes(snapshot: GraphSnapshot): GraphNode[] {
+  const byTier: Record<string, GraphNode[]> = {};
+  for (const n of snapshot.nodes) {
+    const t = n.tier || "ltm";
+    if (!byTier[t]) byTier[t] = [];
+    byTier[t].push(n);
+  }
+  const tiers = Object.keys(byTier);
+  const totalNodes = snapshot.nodes.length;
+  const result: GraphNode[] = [];
+  for (const tier of tiers) {
+    const tierNodes = byTier[tier];
+    const proportion = tierNodes.length / totalNodes;
+    const budget = Math.max(5, Math.round(MAX_NODES * proportion));
+    tierNodes.sort((a, b) => {
+      if (a.dormant !== b.dormant) return a.dormant ? 1 : -1;
+      return (b.baseImportance + b.recallCount * 0.02) - (a.baseImportance + a.recallCount * 0.02);
+    });
+    result.push(...tierNodes.slice(0, budget));
+  }
+  return result.slice(0, MAX_NODES);
+}
+
+function InstancedNeurons({ brain, onSelect, activeIds }: {
   brain: BrainNode[];
   onSelect: (n: GraphNode) => void;
-  onHover: (n: GraphNode | null) => void;
+  activeIds: string[];
 }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const glowRef = useRef<THREE.Mesh>(null);
-  const [hovered, setHovered] = useState(false);
-  const startTime = useMemo(() => Math.random() * 10, []);
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const colorObj = useMemo(() => new THREE.Color(), []);
+  const phases = useMemo(() => brain.map(() => Math.random() * 10), [brain]);
+
+  const activeSet = useMemo(() => new Set(activeIds), [activeIds]);
+
+  useEffect(() => {
+    if (!meshRef.current) return;
+    for (let i = 0; i < brain.length; i++) {
+      brain[i].active = activeSet.has(brain[i].data.id);
+    }
+  }, [activeSet, brain]);
 
   useFrame((state) => {
     if (!meshRef.current) return;
-    const t = state.clock.elapsedTime + startTime;
-    const active = node.active || hovered;
-    const pulse = active ? 1 + Math.sin(t * 4) * 0.15 : 1 + Math.sin(t * 0.5) * 0.03;
-    meshRef.current.scale.setScalar(pulse);
-
-    if (node.active) {
-      meshRef.current.position.lerp(
-        node.basePosition.clone().multiplyScalar(1.05),
-        0.1,
-      );
-    } else {
-      meshRef.current.position.lerp(node.basePosition, 0.08);
+    const t = state.clock.elapsedTime;
+    for (let i = 0; i < brain.length; i++) {
+      const node = brain[i];
+      const active = node.active;
+      const pulse = active ? 1 + Math.sin(t * 4 + phases[i]) * 0.15 : 1 + Math.sin(t * 0.5 + phases[i]) * 0.03;
+      dummy.position.copy(node.basePosition);
+      dummy.scale.setScalar(node.radius * pulse * 2);
+      dummy.rotation.y = t * (active ? 0.01 : 0.003) + phases[i];
+      dummy.rotation.x = t * 0.0015 + phases[i] * 0.5;
+      dummy.updateMatrix();
+      meshRef.current.setMatrixAt(i, dummy.matrix);
+      const isDormant = node.data.dormant;
+      colorObj.set(isDormant ? "#444450" : node.color);
+      meshRef.current.setColorAt(i, colorObj);
     }
-
-    const rot = active ? 0.01 : 0.003;
-    meshRef.current.rotation.y += rot;
-    meshRef.current.rotation.x += rot * 0.5;
-
-    if (glowRef.current) {
-      const mat = glowRef.current.material as THREE.MeshBasicMaterial;
-      const target = active ? 0.8 : hovered ? 0.4 : node.data.dormant ? 0.05 : 0.15 + node.data.decayFactor * 0.1;
-      mat.opacity = THREE.MathUtils.lerp(mat.opacity, target, 0.1);
-      glowRef.current.scale.setScalar(active ? 2.5 : 1.8);
-    }
+    meshRef.current.instanceMatrix.needsUpdate = true;
+    if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
   });
 
-  const isDormant = node.data.dormant;
-  const opacity = isDormant ? 0.3 : !node.data.valid ? 0.4 : 0.7 + node.data.decayFactor * 0.3;
-
-  let geometry: THREE.BufferGeometry;
-  if (node.data.procedure) {
-    geometry = new THREE.OctahedronGeometry(node.radius, 0);
-  } else if (node.data.sessionMarker) {
-    geometry = new THREE.TetrahedronGeometry(node.radius, 0);
-  } else {
-    geometry = new THREE.SphereGeometry(node.radius, 16, 16);
-  }
+  const handleClick = (e: any) => {
+    e.stopPropagation();
+    const idx = e.instanceId;
+    if (idx !== undefined && idx < brain.length) onSelect(brain[idx].data);
+  };
 
   return (
-    <group position={node.position}>
-      <mesh
-        ref={meshRef}
-        geometry={geometry}
-        onPointerOver={(e) => { e.stopPropagation(); setHovered(true); onHover(node.data); document.body.style.cursor = "pointer"; }}
-        onPointerOut={(e) => { e.stopPropagation(); setHovered(false); onHover(null); document.body.style.cursor = "default"; }}
-        onClick={(e) => { e.stopPropagation(); onSelect(node.data); }}
-      >
-        <meshStandardMaterial
-          color={isDormant ? "#444450" : node.color}
-          emissive={node.color}
-          emissiveIntensity={node.active ? 1.5 : hovered ? 0.8 : isDormant ? 0.1 : 0.3 + node.data.decayFactor * 0.3}
-          transparent
-          opacity={opacity}
-          roughness={0.4}
-          metalness={0.2}
-        />
-      </mesh>
-
-      <mesh ref={glowRef} scale={1.8}>
-        <sphereGeometry args={[node.radius, 12, 12]} />
-        <meshBasicMaterial
-          color={node.color}
-          transparent
-          opacity={0.15}
-          side={THREE.BackSide}
-          depthWrite={false}
-        />
-      </mesh>
-
-      {node.data.ltmLevel && node.data.ltmLevel > 1 && (
-        <>
-          {Array.from({ length: node.data.ltmLevel - 1 }).map((_, i) => (
-            <mesh key={i} scale={1.4 + i * 0.5}>
-              <sphereGeometry args={[node.radius, 12, 12]} />
-              <meshBasicMaterial
-                color={node.color}
-                transparent
-                opacity={0.08}
-                wireframe
-                side={THREE.BackSide}
-              />
-            </mesh>
-          ))}
-        </>
-      )}
-
-      {(hovered || node.active) && (
-        <Html distanceFactor={12} position={[0, node.radius + 0.5, 0]} center>
-          <div style={{
-            background: "rgba(10,10,16,0.92)",
-            border: `1px solid ${TIER_COLORS[node.tier]}55`,
-            borderRadius: "8px",
-            padding: "6px 10px",
-            whiteSpace: "nowrap",
-            pointerEvents: "none",
-            fontFamily: "'Space Mono', monospace",
-          }}>
-            <div style={{ fontSize: "11px", fontWeight: "bold", color: TIER_COLORS[node.tier] }}>
-              {node.data.label.substring(0, 30)}
-            </div>
-            <div style={{ fontSize: "9px", color: "#888", marginTop: "2px" }}>
-              {node.tier} · recall: {node.data.recallCount} · decay: {node.data.decayFactor.toFixed(2)}
-            </div>
-          </div>
-        </Html>
-      )}
-    </group>
+    <instancedMesh
+      ref={meshRef}
+      args={[undefined as any, undefined as any, brain.length]}
+      onClick={handleClick}
+    >
+      <sphereGeometry args={[0.5, 12, 12]} />
+      <meshStandardMaterial
+        emissive={"#19e4d4"}
+        emissiveIntensity={0.3}
+        transparent
+        roughness={0.4}
+        metalness={0.2}
+        vertexColors
+      />
+    </instancedMesh>
   );
 }
 
-function SynapseLine({ from, to, active }: {
-  from: BrainNode;
-  to: BrainNode;
-  active: boolean;
+function EdgeSegments({ brain, snapshot, activeIds }: {
+  brain: BrainNode[];
+  snapshot: GraphSnapshot;
+  activeIds: string[];
 }) {
-  const lineRef = useRef<THREE.BufferGeometry>(null);
-  const startTime = useMemo(() => Math.random() * 5, []);
+  const ref = useRef<THREE.LineSegments>(null);
+  const activeSet = useMemo(() => new Set(activeIds), [activeIds]);
 
-  const points = useMemo(() => {
-    const mid = from.basePosition.clone().add(to.basePosition).multiplyScalar(0.5);
-    const perp = new THREE.Vector3().subVectors(to.basePosition, from.basePosition);
-    const up = new THREE.Vector3(0, 1, 0);
-    const side = new THREE.Vector3().crossVectors(perp, up).normalize().multiplyScalar(0.8);
-    mid.add(side);
-    const curve = new THREE.QuadraticBezierCurve3(from.basePosition, mid, to.basePosition);
-    return curve.getPoints(20);
-  }, [from, to]);
+  const { positions, colors } = useMemo(() => {
+    const nodeMap = new Map(brain.map(b => [b.data.id, b]));
+    const pos: number[] = [];
+    const col: number[] = [];
+    let count = 0;
+
+    for (const rel of snapshot.relations) {
+      if (count >= MAX_EDGES) break;
+      const s = nodeMap.get(rel.source);
+      const t = nodeMap.get(rel.target);
+      if (!s || !t) continue;
+      pos.push(s.basePosition.x, s.basePosition.y, s.basePosition.z);
+      pos.push(t.basePosition.x, t.basePosition.y, t.basePosition.z);
+      const isActive = activeSet.has(rel.source) && activeSet.has(rel.target);
+      const c = isActive ? new THREE.Color(TIER_COLORS[s.tier]) : new THREE.Color("#444466");
+      col.push(c.r, c.g, c.b, c.r, c.g, c.b);
+      count++;
+    }
+    return { positions: new Float32Array(pos), colors: new Float32Array(col) };
+  }, [brain, snapshot, activeSet]);
 
   useFrame((state) => {
-    if (!active || !lineRef.current) return;
-    const t = (state.clock.elapsedTime + startTime) % 2;
-    if (t < 1) {
-      const positions = lineRef.current.attributes.position;
-      const count = positions.count;
-      for (let i = 0; i < count; i++) {
-        const f = i / (count - 1);
-        const pulse = Math.exp(-Math.pow((f - t) * 5, 2));
-        positions.setXYZ(i, points[i].x, points[i].y, points[i].z);
-      }
-      positions.needsUpdate = true;
-    }
+    if (!ref.current) return;
+    const mat = ref.current.material as THREE.LineBasicMaterial;
+    mat.opacity = 0.4 + Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
   });
 
-  const color = active ? TIER_COLORS[from.tier] : "#444466";
-  const opacity = active ? 0.8 : 0.15;
-
   return (
-    <Line
-      points={points}
-      color={color}
-      lineWidth={active ? 2 : 0.5}
-      transparent
-      opacity={opacity}
-      dashed={false}
-    />
+    <lineSegments ref={ref}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        <bufferAttribute attach="attributes-color" args={[colors, 3]} />
+      </bufferGeometry>
+      <lineBasicMaterial vertexColors transparent opacity={0.4} depthWrite={false} />
+    </lineSegments>
   );
 }
 
@@ -313,9 +277,8 @@ function BrainRegionGlow({ tier, count }: { tier: Tier; count: number }) {
   const meshRef = useRef<THREE.Mesh>(null);
   useFrame((state) => {
     if (!meshRef.current) return;
-    const t = state.clock.elapsedTime;
     const mat = meshRef.current.material as THREE.MeshBasicMaterial;
-    mat.opacity = 0.04 + Math.sin(t * 0.3) * 0.01;
+    mat.opacity = 0.04 + Math.sin(state.clock.elapsedTime * 0.3) * 0.01;
   });
   const r = Math.max(2.5, 1.5 + count * 0.3);
   return (
@@ -345,18 +308,13 @@ function StarField() {
 
   const ref = useRef<THREE.Points>(null);
   useFrame((state) => {
-    if (ref.current) {
-      ref.current.rotation.y = state.clock.elapsedTime * 0.01;
-    }
+    if (ref.current) ref.current.rotation.y = state.clock.elapsedTime * 0.01;
   });
 
   return (
     <points ref={ref}>
       <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[points, 3]}
-        />
+        <bufferAttribute attach="attributes-position" args={[points, 3]} />
       </bufferGeometry>
       <pointsMaterial size={0.05} color="#333344" transparent opacity={0.4} />
     </points>
@@ -368,8 +326,7 @@ function CameraController({ selectedNode }: { selectedNode: BrainNode | null }) 
   const controlsRef = useRef<any>(null);
   useEffect(() => {
     if (selectedNode && controlsRef.current) {
-      const target = selectedNode.basePosition;
-      controlsRef.current.target.lerp(target, 0.1);
+      controlsRef.current.target.lerp(selectedNode.basePosition, 0.1);
     }
   }, [selectedNode]);
   return <OrbitControls ref={controlsRef} enablePan enableZoom enableRotate zoomSpeed={0.6} rotateSpeed={0.5} minDistance={5} maxDistance={30} />;
@@ -379,17 +336,16 @@ interface SceneProps {
   snapshot: GraphSnapshot;
   selected: GraphNode | null;
   setSelected: (n: GraphNode | null) => void;
-  setHovered: (n: GraphNode | null) => void;
   activeIds: string[];
-  triggerRecall: (query: string) => void;
+  visibleNodes: GraphNode[];
 }
 
-function Scene({ snapshot, selected, setSelected, setHovered, activeIds, triggerRecall }: SceneProps) {
+function Scene({ snapshot, selected, setSelected, activeIds, visibleNodes }: SceneProps) {
   const brain = useMemo<BrainNode[]>(() => {
     const tierCounts: Record<string, number> = {};
     const tierIndices: Record<string, number> = {};
 
-    return snapshot.nodes.map((node) => {
+    return visibleNodes.map((node) => {
       const tier = (node.tier || "ltm") as Tier;
       tierCounts[tier] = (tierCounts[tier] || 0) + 1;
       tierIndices[tier] = (tierIndices[tier] || 0) + 1;
@@ -406,56 +362,13 @@ function Scene({ snapshot, selected, setSelected, setHovered, activeIds, trigger
         data: node,
         position: pos.clone(),
         basePosition: pos.clone(),
-        velocity: new THREE.Vector3(),
         radius,
         tier,
         color: new THREE.Color(TIER_COLORS[tier] || TIER_COLORS.ltm),
-        glowIntensity: 0,
         active: false,
       };
     });
-  }, [snapshot]);
-
-  const edges = useMemo(() => {
-    const nodeMap = new Map(brain.map(b => [b.data.id, b]));
-    const result: { from: BrainNode; to: BrainNode }[] = [];
-
-    for (const rel of snapshot.relations) {
-      const s = nodeMap.get(rel.source);
-      const t = nodeMap.get(rel.target);
-      if (s && t) result.push({ from: s, to: t });
-    }
-
-    const entityGroups = new Map<string, BrainNode[]>();
-    for (const n of brain) {
-      if (!n.data.entities) continue;
-      for (const e of n.data.entities) {
-        if (!entityGroups.has(e)) entityGroups.set(e, []);
-        entityGroups.get(e)!.push(n);
-      }
-    }
-    for (const [, group] of entityGroups) {
-      if (group.length < 2) continue;
-      for (let i = 0; i < group.length; i++) {
-        for (let j = i + 1; j < group.length; j++) {
-          const exists = result.some(e =>
-            (e.from === group[i] && e.to === group[j]) ||
-            (e.from === group[j] && e.to === group[i])
-          );
-          if (!exists) result.push({ from: group[i], to: group[j] });
-        }
-      }
-    }
-
-    return result;
-  }, [brain, snapshot]);
-
-  useEffect(() => {
-    const idSet = new Set(activeIds);
-    for (const n of brain) {
-      n.active = idSet.has(n.data.id);
-    }
-  }, [activeIds, brain]);
+  }, [visibleNodes]);
 
   const selectedBrain = useMemo(() => {
     return selected ? brain.find(b => b.data.id === selected.id) || null : null;
@@ -483,19 +396,26 @@ function Scene({ snapshot, selected, setSelected, setHovered, activeIds, trigger
         return <BrainRegionLabel key={"label-" + tier} tier={tier} count={count} />;
       })}
 
-      {edges.map((edge, i) => (
-        <SynapseLine key={i} from={edge.from} to={edge.to} active={edge.from.active && edge.to.active} />
-      ))}
+      <EdgeSegments brain={brain} snapshot={snapshot} activeIds={activeIds} />
+      <InstancedNeurons brain={brain} onSelect={setSelected} activeIds={activeIds} />
 
-      {brain.map((node) => (
-        <NeuronMesh
-          key={node.data.id}
-          node={node}
-          brain={brain}
-          onSelect={setSelected}
-          onHover={setHovered}
-        />
-      ))}
+      {selectedBrain && (
+        <Html position={[selectedBrain.basePosition.x, selectedBrain.basePosition.y + 1, selectedBrain.basePosition.z]} center>
+          <div style={{
+            background: "rgba(10,10,16,0.92)",
+            border: `1px solid ${TIER_COLORS[selectedBrain.tier]}55`,
+            borderRadius: "8px",
+            padding: "6px 10px",
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+            fontFamily: "'Space Mono', monospace",
+          }}>
+            <div style={{ fontSize: "11px", fontWeight: "bold", color: TIER_COLORS[selectedBrain.tier] }}>
+              {selectedBrain.data.label.substring(0, 30)}
+            </div>
+          </div>
+        </Html>
+      )}
 
       <CameraController selectedNode={selectedBrain} />
     </>
@@ -593,7 +513,6 @@ export function NeuralGraph() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<GraphNode | null>(null);
-  const [, setHovered] = useState<GraphNode | null>(null);
   const [showStats, setShowStats] = useState(true);
   const [activeIds, setActiveIds] = useState<string[]>([]);
 
@@ -610,6 +529,11 @@ export function NeuralGraph() {
   };
 
   useEffect(() => { fetchGraph(); }, []);
+
+  const visibleNodes = useMemo(() => {
+    if (!snapshot) return [];
+    return sampleNodes(snapshot);
+  }, [snapshot]);
 
   const handleSelect = (node: GraphNode | null) => {
     if (!node) { handleClose(); return; }
@@ -634,7 +558,7 @@ export function NeuralGraph() {
       n.content.toLowerCase().includes(q) ||
       n.label.toLowerCase().includes(q) ||
       n.tags.some(t => t.toLowerCase().includes(q))
-    ).slice(0, 10);
+    ).slice(0, 15);
     setActiveIds(matches.map(m => m.id));
   };
 
@@ -670,7 +594,7 @@ export function NeuralGraph() {
           <h2 className="font-display font-700 text-lg text-[var(--text-bright)]">Neural Memory Brain</h2>
           {stats && (
             <span className="chip chip-cyan text-xs">
-              {stats.totalNodes} neurons · {stats.totalRelations} synapses · 3D
+              {stats.totalNodes} neurons · {stats.totalRelations} synapses · {visibleNodes.length} rendered · 3D
             </span>
           )}
         </div>
@@ -694,17 +618,16 @@ export function NeuralGraph() {
           {snapshot && (
             <Canvas
               camera={{ position: [0, 2, 15], fov: 60 }}
-              dpr={[1, 2]}
-              gl={{ antialias: true, alpha: true }}
+              dpr={[1, 1.5]}
+              gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
             >
               <Suspense fallback={null}>
                 <Scene
                   snapshot={snapshot}
                   selected={selected}
                   setSelected={handleSelect}
-                  setHovered={setHovered}
                   activeIds={activeIds}
-                  triggerRecall={triggerRecall}
+                  visibleNodes={visibleNodes}
                 />
               </Suspense>
             </Canvas>
