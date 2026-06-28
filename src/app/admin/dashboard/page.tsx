@@ -15,7 +15,12 @@ interface Post {
   accent?: string;
 }
 
-type Tab = "content" | "neural";
+type Tab = "content" | "neural" | "webchat";
+
+const WEBCHAT_URL =
+  typeof window !== "undefined" && window.location.hostname === "localhost"
+    ? "http://localhost:8198"
+    : "https://wchat.kevcspot.com";
 
 export default function AdminDashboard() {
   const [token, setToken] = useState("");
@@ -143,6 +148,16 @@ export default function AdminDashboard() {
             >
               Neural Graph
             </button>
+            <button
+              onClick={() => setActiveTab("webchat")}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                activeTab === "webchat"
+                  ? "bg-[var(--cyan)] text-[#08080c]"
+                  : "text-[var(--text-dim)] hover:text-[var(--text-bright)]"
+              }`}
+            >
+              WebChat
+            </button>
           </div>
           <button onClick={logout} className="btn-chip text-sm text-[var(--text-dim)] hover:text-[var(--red)] transition-colors">
             Logout
@@ -152,6 +167,15 @@ export default function AdminDashboard() {
 
       {activeTab === "neural" ? (
         <NeuralGraph />
+      ) : activeTab === "webchat" ? (
+        <div className="glass p-2" style={{ height: "calc(100vh - 200px)" }}>
+          <iframe
+            src={WEBCHAT_URL}
+            className="w-full h-full rounded-xl border-0"
+            title="WebChat-Forge"
+            allow="clipboard-read; clipboard-write"
+          />
+        </div>
       ) : (
         <>
           {/* AI Generation Panel */}
