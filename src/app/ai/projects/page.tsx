@@ -5,48 +5,29 @@ export const metadata = { title: "AI Projects — KC // kevcspot" };
 
 export default function ProjectsPage() {
   return (
-    <div className="page-in max-w-6xl mx-auto px-6 py-32">
+    <div className="page-in main-wrapper">
       <Breadcrumbs items={[{ label: "AI", href: "/ai" }, { label: "Projects" }]} />
-      <h1 className="font-display font-800 text-4xl md:text-5xl mb-4 gradient-gold mt-6">Projects</h1>
-      <p className="text-lg text-[var(--text-dim)] max-w-2xl mb-12">
+      <h1 className="font-display font-800 mb-3 gradient-gold mt-4" style={{ fontSize: "clamp(1.75rem, 5vw, 2.5rem)" }}>Projects</h1>
+      <p className="text-[var(--text-dim)] mb-6" style={{ fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)" }}>
         The Forge ecosystem — AI infrastructure, memory systems, chat interfaces, training, and more.
-        Each project has a full technical reference with sections you can navigate.
       </p>
 
-      <div className="space-y-6">
+      <div className="space-y-3">
         {projects.map((project, i) => (
           <Link
             key={project.slug}
             href={`/ai/projects/${project.slug}#overview`}
-            className="glass p-8 group block fade-up"
-            style={{ animationDelay: `${i * 100}ms` }}
+            className="glass p-4 group block fade-up"
+            style={{ animationDelay: `${i * 80}ms` }}
           >
-            <div className="flex flex-col md:flex-row md:items-start gap-6">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className={`chip chip-${project.accent}`}>{project.category}</div>
-                  <span className="text-xs text-[var(--text-dim)] font-mono">{project.status}</span>
-                </div>
-                <h2 className="font-display font-700 text-2xl mb-2 text-[var(--text-bright)] group-hover:text-[var(--gold-bright)] transition-colors">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className={`chip chip-${project.accent} flex-shrink-0`}>{project.category}</div>
+                <h2 className="font-display font-700 text-[var(--text-bright)] group-hover:text-[var(--gold-bright)] transition-colors truncate" style={{ fontSize: "clamp(1rem, 2.5vw, 1.25rem)" }}>
                   {project.name}
                 </h2>
-                <p className="text-[var(--text-dim)] leading-relaxed mb-4">{project.tagline}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {project.sections.slice(0, 5).map((s) => (
-                    <span key={s.id} className="text-xs text-[var(--text-dim)] font-mono">
-                      {s.icon} {s.label}
-                      {project.sections.indexOf(s) < 4 ? " · " : ""}
-                    </span>
-                  ))}
-                </div>
               </div>
-              <div className="md:w-64 md:border-l md:border-[var(--border)] md:pl-6">
-                <p className="text-xs font-mono uppercase tracking-wider text-[var(--text-dim)] mb-2">Highlight</p>
-                <p className="text-sm text-[var(--gold)]">{project.highlight}</p>
-                <p className="text-xs text-[var(--text-dim)] font-mono mt-4">
-                  {project.sections.length} sections {"\u2192"}
-                </p>
-              </div>
+              <p className="text-xs text-[var(--gold)] font-mono truncate flex-shrink-0">{project.highlight}</p>
             </div>
           </Link>
         ))}
