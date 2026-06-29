@@ -51,6 +51,7 @@
 html {
   scroll-behavior: smooth;
   background: var(--bg);
+  font-size: clamp(15px, 2.5vw, 17px);
 }
 
 body {
@@ -91,7 +92,7 @@ body::after {
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-bright); }
@@ -99,13 +100,53 @@ body::after {
 /* Selection */
 ::selection { background: rgba(224, 168, 46, 0.25); color: var(--gold-bright); }
 
+/* Main Wrapper — fluid single-column container */
+.main-wrapper {
+  width: 100%;
+  max-width: clamp(320px, 92vw, 860px);
+  margin: 0 auto;
+  padding: clamp(1rem, 3vw, 2rem);
+}
+
+/* Content Wrapper — inner boxed content with underglow */
+.content-wrapper {
+  background: rgba(14, 14, 22, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: clamp(12px, 2vw, 20px);
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  position: relative;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 8px 32px rgba(0,0,0,0.4), 0 0 60px -20px rgba(224,168,46,0.08);
+  transition: box-shadow 0.4s ease;
+}
+.content-wrapper:hover {
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.03), 0 8px 32px rgba(0,0,0,0.45), 0 0 80px -20px rgba(224,168,46,0.12);
+}
+
+/* Underglow variants */
+.underglow-gold { box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 4px 24px -4px rgba(224,168,46,0.15); }
+.underglow-cyan { box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 4px 24px -4px rgba(25,228,212,0.12); }
+.underglow-purple { box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 4px 24px -4px rgba(157,107,255,0.12); }
+
+/* Buttons */
+.btn-gold {
+  background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+  color: #1a1006; border: 1px solid rgba(224,168,46,0.4);
+  box-shadow: 0 4px 16px -4px rgba(224,168,46,0.3);
+  transition: all 0.25s;
+}
+.btn-gold:hover { box-shadow: 0 6px 24px -4px rgba(224,168,46,0.45); transform: translateY(-1px); }
+.btn-chip { background: var(--surface); color: var(--text); border: 1px solid var(--border); transition: all 0.25s; }
+.btn-chip:hover { background: var(--surface-hover); border-color: var(--border-bright); color: var(--text-bright); }
+
 /* Glass card */
 .glass {
   background: rgba(19, 19, 29, 0.6);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: clamp(12px, 2vw, 16px);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -182,10 +223,10 @@ body::after {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 10px;
+  padding: 3px clamp(6px, 1.5vw, 10px);
   border-radius: 6px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: clamp(10px, 1.6vw, 11px);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -238,17 +279,21 @@ body::after {
   display: flex;
   align-items: flex-end;
   gap: 2px;
-  padding: 0 6px;
+  padding: 0 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+.foldertab-nav::-webkit-scrollbar { display: none; }
 
 .foldertab {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 18px 10px;
+  gap: clamp(3px, 1vw, 6px);
+  padding: clamp(6px, 1.5vw, 8px) clamp(10px, 3vw, 18px) clamp(8px, 2vw, 10px);
   font-family: var(--font-body), "Outfit", sans-serif;
-  font-size: 14px;
+  font-size: clamp(12px, 2.5vw, 14px);
   font-weight: 500;
   color: var(--text-dim);
   text-decoration: none;
@@ -266,7 +311,7 @@ body::after {
   background: rgba(19, 19, 29, 0.5);
   border-color: var(--border);
   border-bottom: none;
-  padding-bottom: 12px;
+  padding-bottom: clamp(10px, 2vw, 12px);
 }
 
 .foldertab.active {
@@ -274,7 +319,7 @@ body::after {
   background: rgba(19, 19, 29, 0.8);
   border-color: var(--border-bright);
   border-bottom: none;
-  padding-bottom: 12px;
+  padding-bottom: clamp(10px, 2vw, 12px);
   z-index: 2;
 }
 
@@ -332,13 +377,13 @@ body::after {
 
 .blog-entry {
   position: relative;
-  padding: 28px 0;
+  padding: clamp(1rem, 3vw, 1.75rem) 0;
   border-bottom: 1px solid var(--border);
   transition: all 0.2s;
 }
 
 .blog-entry:hover {
-  padding-left: 12px;
+  padding-left: clamp(4px, 1vw, 12px);
 }
 
 .blog-entry:hover .blog-entry-title {
@@ -352,17 +397,18 @@ body::after {
 .blog-entry-meta {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: clamp(4px, 1.5vw, 10px);
   margin-bottom: 8px;
   font-family: var(--font-mono), monospace;
-  font-size: 12px;
+  font-size: clamp(10px, 1.8vw, 12px);
   color: var(--text-dim);
+  flex-wrap: wrap;
 }
 
 .blog-entry-title {
   font-family: var(--font-display), sans-serif;
   font-weight: 700;
-  font-size: 22px;
+  font-size: clamp(1.1rem, 3.5vw, 1.4rem);
   color: var(--text-bright);
   margin-bottom: 6px;
   transition: color 0.2s;
@@ -371,7 +417,7 @@ body::after {
 
 .blog-entry-desc {
   color: var(--text-dim);
-  font-size: 15px;
+  font-size: clamp(0.85rem, 2.2vw, 0.95rem);
   line-height: 1.6;
   margin-bottom: 10px;
 }
@@ -380,6 +426,7 @@ body::after {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* Divider */
@@ -397,11 +444,11 @@ body::after {
 
 /* Content container */
 .content-prose {
-  max-width: 720px;
+  max-width: 100%;
 }
-.content-prose p { color: var(--text); line-height: 1.8; margin-bottom: 1.25rem; }
-.content-prose h2 { font-size: 1.75rem; font-weight: 700; color: white; margin-top: 2.5rem; margin-bottom: 1rem; }
-.content-prose h3 { font-size: 1.35rem; font-weight: 600; color: var(--cyan); margin-top: 2rem; margin-bottom: 0.75rem; }
+.content-prose p { color: var(--text); line-height: 1.8; margin-bottom: 1.25rem; font-size: clamp(0.9rem, 2.2vw, 1rem); }
+.content-prose h2 { font-size: clamp(1.3rem, 3.5vw, 1.75rem); font-weight: 700; color: white; margin-top: 2.5rem; margin-bottom: 1rem; }
+.content-prose h3 { font-size: clamp(1.1rem, 2.8vw, 1.35rem); font-weight: 600; color: var(--cyan); margin-top: 2rem; margin-bottom: 0.75rem; }
 .content-prose ul { list-style: none; margin-bottom: 1.5rem; }
 .content-prose ul li { position: relative; padding-left: 1.5rem; margin-bottom: 0.5rem; color: var(--text); }
 .content-prose ul li::before {
@@ -419,3 +466,130 @@ body::after {
 .content-prose table { width: 100%; margin-bottom: 1.5rem; border-collapse: collapse; }
 .content-prose th { text-align: left; font-weight: 600; color: var(--gold); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; padding-right: 1rem; }
 .content-prose td { border-bottom: 1px solid rgba(37, 37, 58, 0.5); padding: 0.5rem 1rem 0.5rem 0; color: var(--text); }
+
+/* Floating Chat Widget */
+.chat-fab {
+  position: fixed;
+  bottom: clamp(1rem, 3vw, 1.5rem);
+  right: clamp(1rem, 3vw, 1.5rem);
+  width: clamp(48px, 12vw, 56px);
+  height: clamp(48px, 12vw, 56px);
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+  border: 1px solid rgba(224, 168, 46, 0.4);
+  box-shadow: 0 4px 24px -4px rgba(224, 168, 46, 0.4), 0 0 40px -10px rgba(224, 168, 46, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 100;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: clamp(20px, 5vw, 24px);
+}
+.chat-fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 32px -4px rgba(224, 168, 46, 0.5), 0 0 60px -10px rgba(224, 168, 46, 0.3);
+}
+.chat-fab-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(224, 168, 46, 0.4);
+  animation: chatPulse 2s ease-out infinite;
+}
+@keyframes chatPulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.chat-panel {
+  position: fixed;
+  bottom: clamp(4.5rem, 10vw, 5.5rem);
+  right: clamp(1rem, 3vw, 1.5rem);
+  width: clamp(300px, 90vw, 420px);
+  height: clamp(400px, 70vh, 560px);
+  background: rgba(14, 14, 22, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-bright);
+  border-radius: clamp(14px, 2vw, 20px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 80px -20px rgba(224, 168, 46, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 100;
+  animation: chatSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes chatSlideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.chat-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(0.75rem, 2vw, 1rem) clamp(1rem, 2.5vw, 1.25rem);
+  border-bottom: 1px solid var(--border);
+  background: rgba(19, 19, 29, 0.8);
+}
+.chat-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: clamp(0.75rem, 2vw, 1rem);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.5rem, 1.5vw, 0.75rem);
+}
+.chat-panel-footer {
+  padding: clamp(0.5rem, 1.5vw, 0.75rem);
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: clamp(0.25rem, 1vw, 0.5rem);
+}
+.chat-bubble {
+  max-width: 85%;
+  padding: clamp(0.5rem, 1.5vw, 0.75rem) clamp(0.75rem, 2vw, 1rem);
+  border-radius: clamp(12px, 2vw, 16px);
+  font-size: clamp(0.8rem, 2vw, 0.875rem);
+  line-height: 1.5;
+  word-break: break-word;
+}
+.chat-bubble-user {
+  background: var(--purple);
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+.chat-bubble-ai {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+.chat-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: clamp(8px, 1.5vw, 12px);
+  padding: clamp(0.5rem, 1.5vw, 0.75rem) clamp(0.75rem, 2vw, 1rem);
+  color: var(--text);
+  font-size: clamp(0.8rem, 2vw, 0.875rem);
+  outline: none;
+  resize: none;
+  font-family: inherit;
+}
+.chat-input:focus { border-color: var(--gold); }
+.chat-send {
+  background: var(--gold);
+  color: #1a1006;
+  border: none;
+  border-radius: clamp(8px, 1.5vw, 12px);
+  padding: clamp(0.5rem, 1.5vw, 0.75rem) clamp(0.75rem, 2vw, 1.25rem);
+  font-size: clamp(0.8rem, 2vw, 0.875rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+.chat-send:hover { opacity: 0.85; }
+.chat-send:disabled { opacity: 0.3; cursor: not-allowed; }

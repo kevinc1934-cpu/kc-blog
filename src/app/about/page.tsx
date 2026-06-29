@@ -2,9 +2,10 @@ export const metadata = { title: "About — KC // kevcspot" };
 
 export default function AboutPage() {
   return (
-    <div className="page-in max-w-4xl mx-auto px-6 py-32">
-      <div className="chip chip-gold mb-6">About Me</div>
-      <h1 className="font-display font-800 text-4xl md:text-5xl mb-8 gradient-gold">Kevin</h1>
+    <div className="page-in main-wrapper">
+      <div className="content-wrapper">
+        <div className="chip chip-gold mb-4">About Me</div>
+        <h1 className="font-display font-800 mb-6 gradient-gold" style={{ fontSize: "clamp(1.75rem, 5vw, 2.5rem)" }}>Kevin</h1>
 
       <div className="content-prose space-y-6">
         <p className="text-lg text-[var(--text)] leading-relaxed">
@@ -94,6 +95,7 @@ export default function AboutPage() {
           AI section for project breakdowns and model analysis, or the tutorials section
           for practical guides on sweepstakes casinos and technical deep dives.
         </p>
+      </div>
       </div>
     </div>
   );

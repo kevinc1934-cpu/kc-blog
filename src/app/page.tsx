@@ -7,23 +7,22 @@ export default async function Home() {
   const feed = await getAllUpdates();
 
   return (
-    <div className="page-in max-w-3xl mx-auto px-6 py-12">
-      {/* Header */}
-      <div className="mb-12 pb-8 border-b border-[var(--border)]">
-        <div className="chip chip-gold mb-4">Personal Blog</div>
-        <h1 className="font-display font-800 text-4xl mb-3">
+    <div className="page-in main-wrapper">
+      <div className="mb-8 pb-6 border-b border-[var(--border)]">
+        <div className="chip chip-gold mb-3">Personal Blog</div>
+        <h1 className="font-display font-800 mb-3" style={{ fontSize: "clamp(1.75rem, 5vw, 2.5rem)" }}>
           <span className="gradient-dual">Building at the edge</span>
           <br />
-          <span className="text-[var(--text-bright)]">of AI & automation</span>
+          <span className="text-[var(--text-bright)]">of AI &amp; automation</span>
         </h1>
-        <p className="text-[var(--text-dim)] text-lg max-w-xl">
+        <p className="text-[var(--text-dim)]" style={{ fontSize: "clamp(0.9rem, 2.5vw, 1.1rem)" }}>
           AI projects, model breakdowns, sweepstakes casino strategy, and technical deep dives —
           updated daily by AI.
         </p>
       </div>
 
-      {/* Blog Feed */}
-      <div className="blog-feed">
+      <div className="content-wrapper">
+        <div className="blog-feed">
         {feed.map((item, i) => {
           if (item.type === "post") {
             return <PostEntry key={`post-${(item.data as BlogPost).slug}`} post={item.data as BlogPost} />;
@@ -34,10 +33,11 @@ export default async function Home() {
       </div>
 
       {feed.length === 0 && (
-        <div className="text-center py-20 text-[var(--text-dim)]">
+        <div className="text-center py-12 text-[var(--text-dim)]">
           <p className="text-lg">No posts yet. Check back soon — AI generates new content daily.</p>
         </div>
       )}
+      </div>
     </div>
   );
 }

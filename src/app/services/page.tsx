@@ -117,7 +117,7 @@ const llmPricing = [
 
 export default function ServicesPage() {
   return (
-    <div className="page-in max-w-5xl mx-auto px-6 py-12">
+    <div className="page-in main-wrapper">
       {/* Hero */}
       <div className="text-center mb-16 pb-8 border-b border-[var(--border)]">
         <div className="chip chip-gold mb-4">AI Development Services</div>

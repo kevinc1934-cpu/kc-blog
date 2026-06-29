@@ -3,6 +3,7 @@ import { Unbounded, Outfit, Space_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 import { getAllPosts } from "@/lib/posts";
+import { SiteChat } from "./site-chat";
 
 const display = Unbounded({
   variable: "--font-display",
@@ -46,8 +47,9 @@ export default function RootLayout({
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="min-h-screen flex flex-col relative">
         <Nav />
-        <main className="flex-1 relative z-10 pt-16">{children}</main>
+        <main className="flex-1 relative z-10 pt-12">{children}</main>
         <Footer />
+        <SiteChat />
       </body>
     </html>
   );
@@ -60,16 +62,16 @@ async function Nav() {
   } catch {}
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 h-16 bg-[rgba(8,8,12,0.85)] backdrop-blur-xl navbar-underglow">
-      <div className="max-w-6xl mx-auto h-full flex items-end justify-between">
-        <Link href="/" className="flex items-center gap-2 mb-3 ml-6 group">
-          <span className="font-display font-800 text-lg tracking-tight">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-[rgba(8,8,12,0.85)] backdrop-blur-xl navbar-underglow" style={{ height: "clamp(48px, 8vw, 64px)" }}>
+      <div className="max-w-6xl mx-auto h-full flex items-end justify-between px-4">
+        <Link href="/" className="flex items-center gap-2 mb-3 group">
+          <span className="font-display font-800 tracking-tight" style={{ fontSize: "clamp(0.9rem, 3vw, 1.1rem)" }}>
             <span className="gradient-gold">KC</span>
             <span className="text-[var(--text-dim)] mx-0.5">//</span>
             <span className="gradient-cyan">kevcspot</span>
           </span>
         </Link>
-        <div className="foldertab-nav mb-0 mr-2">
+        <div className="foldertab-nav mb-0 mr-1">
           <FolderTab href="/" label="Blog" />
           <FolderTab href="/about" label="About" />
           <FolderTab href="/ai" label="AI" />
@@ -93,8 +95,8 @@ function FolderTab({ href, label }: { href: string; label: string }) {
 
 function Footer() {
   return (
-    <footer className="border-t border-[var(--border)] mt-20 py-12 relative z-10">
-      <div className="max-w-6xl mx-auto px-6">
+    <footer className="border-t border-[var(--border)] mt-12 py-8 relative z-10">
+      <div className="main-wrapper">
         <div className="flex flex-col md:flex-row justify-between gap-8">
           <div>
             <div className="font-display font-700 text-sm mb-2">

@@ -21,28 +21,29 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   if (!post) notFound();
 
   return (
-    <div className="page-in max-w-3xl mx-auto px-6 py-12">
-      <nav className="flex items-center gap-2 text-sm text-[var(--text-dim)] font-mono mb-8">
+    <div className="page-in main-wrapper">
+      <nav className="flex items-center gap-2 text-sm text-[var(--text-dim)] font-mono mb-6 flex-wrap">
         <Link href="/" className="hover:text-[var(--gold)] transition-colors">Blog</Link>
         <span className="text-[var(--border-bright)]">/</span>
-        <span className="text-[var(--text-bright)]">{post.title}</span>
+        <span className="text-[var(--text-bright)] truncate">{post.title}</span>
       </nav>
 
-      <div className={`chip chip-${post.accent} mb-4`}>{post.category}</div>
-      <h1 className="font-display font-800 text-3xl md:text-4xl mb-4 gradient-gold">{post.title}</h1>
-      <p className="text-lg text-[var(--text-dim)] mb-4">{post.description}</p>
-      <div className="flex items-center gap-3 text-xs text-[var(--text-dim)] font-mono mb-12">
-        <span>{formatDate(post.date)}</span>
-        <span>·</span>
-        <span>{post.readTime} read</span>
-        <span>·</span>
-        <span>by {post.author}</span>
-        {post.isAiGenerated && <><span>·</span><span className="text-[var(--purple)]">AI-generated</span></>}
-      </div>
+      <div className="content-wrapper">
+        <div className={`chip chip-${post.accent} mb-4`}>{post.category}</div>
+        <h1 className="font-display font-800 mb-3 gradient-gold" style={{ fontSize: "clamp(1.5rem, 5vw, 2.25rem)" }}>{post.title}</h1>
+        <p className="text-[var(--text-dim)] mb-4" style={{ fontSize: "clamp(0.9rem, 2.5vw, 1.1rem)" }}>{post.description}</p>
+        <div className="flex items-center gap-3 text-xs text-[var(--text-dim)] font-mono mb-8 flex-wrap">
+          <span>{formatDate(post.date)}</span>
+          <span>·</span>
+          <span>{post.readTime} read</span>
+          <span>·</span>
+          <span>by {post.author}</span>
+          {post.isAiGenerated && <><span>·</span><span className="text-[var(--purple)]">AI-generated</span></>}
+        </div>
 
-      <div className="divider-gold mb-8" />
+        <div className="divider-gold mb-6" />
 
-      <article className="content-prose">
+        <article className="content-prose">
         {post.content.map((section, i) => (
           <div key={i}>
             {section.heading && (
@@ -115,9 +116,10 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           </div>
         ))}
       </article>
+      </div>
 
-      <div className="mt-12 pt-8 border-t border-[var(--border)]">
-        <Link href="/" className="text-[var(--gold)] hover:text-[var(--gold-bright)] font-medium transition-colors">
+      <div className="mt-6 pt-4 border-t border-[var(--border)] text-center">
+        <Link href="/" className="text-[var(--gold)] hover:text-[var(--gold-bright)] font-medium transition-colors text-sm">
           ← Back to blog
         </Link>
       </div>
