@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { NeuralGraph } from "./neural-graph";
+import { WebChat } from "./web-chat";
 
 interface Post {
   slug: string;
@@ -16,11 +17,6 @@ interface Post {
 }
 
 type Tab = "content" | "neural" | "webchat" | "business";
-
-const WEBCHAT_URL =
-  typeof window !== "undefined" && window.location.hostname === "localhost"
-    ? "http://localhost:8198"
-    : "https://webchat-forge.vercel.app";
 
 function OpenInNewTab({ href, label }: { href: string; label: string }) {
   return (
@@ -193,14 +189,7 @@ export default function AdminDashboard() {
       {activeTab === "neural" ? (
         <NeuralGraph />
       ) : activeTab === "webchat" ? (
-        <div className="glass p-2" style={{ height: "calc(100vh - 200px)" }}>
-          <iframe
-            src={WEBCHAT_URL}
-            className="w-full h-full rounded-xl border-0"
-            title="WebChat-Forge"
-            allow="clipboard-read; clipboard-write"
-          />
-        </div>
+        <WebChat height="calc(100vh - 200px)" />
       ) : activeTab === "business" ? (
         <BusinessDashboard />
       ) : (

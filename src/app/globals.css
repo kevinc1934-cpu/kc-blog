@@ -194,6 +194,7 @@ body::after {
 .chip-cyan { background: rgba(25, 228, 212, 0.1); color: var(--cyan); border: 1px solid rgba(25, 228, 212, 0.2); }
 .chip-purple { background: rgba(157, 107, 255, 0.1); color: var(--purple); border: 1px solid rgba(157, 107, 255, 0.2); }
 .chip-neutral { background: var(--surface); color: var(--text-dim); border: 1px solid var(--border); }
+.chip-green { background: rgba(0, 184, 148, 0.1); color: var(--green); border: 1px solid rgba(0, 184, 148, 0.2); }
 
 /* Fade-in animation */
 @keyframes fadeUp {
